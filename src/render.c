@@ -26,11 +26,24 @@ void line(int ax, int ay, int bx, int by, image_view *color_buffer, vector4f *co
     int ierror = 0;
 
     for (int x=ax; x <= bx; x++) {
+        //printf("%d, %d", x, y);
 
         if(steep) //de-transpose if steep
+        {    
+            // if (y > color_buffer->width || x > color_buffer->height )
+            // { 
+            //     //printf("%d, %d", ax, bx);  
+            //     break;
+            // }
             *color_buffer->at(color_buffer, y, x) = to_color4ub(color);
-        else 
+        } else { 
+            // if (x > color_buffer->width || y > color_buffer->height)
+            // { 
+            //     //printf("%d, %d", ax, bx);  
+            //     break;
+            // }
             *color_buffer->at(color_buffer, x, y) = to_color4ub(color);
+        }
         ierror += 2 * fabsf(by-ay); //measures error commited when y is more horizontal than vertical
         if (ierror > bx - ax) {
             y += by > ay ? 1 : -1;
@@ -129,30 +142,147 @@ struct Model* read_model_lines(char *file_name) {
     free(buffer);
     model->vertices_size = vert_i;
     model->triangles_size = face_i;
-    printf("%d /n", model->triangles_size);
-    printf("%d", face_i);
+
     return model;
 }
 
-void render_wireframe(Model* model, image_view* color_buffer) {
+void render_faces(Model* model, image_view* color_buffer, vector4f* rand_colors) {
+    int width_scale = 600;
+    int height_scale = 600;
+    int yoffset = 200;
+
+
     for (int i = 0; i < (model->triangles_size); i += 3) {
-        //printf("%d \n", i);
-        int width_scale = 800;
-        int height_scale = 800;
+        
         int ax = (1.0f + model->vertices[model->triangles[i]-1].x) * width_scale/ 2;
-        int ay = (1.0f - model->vertices[model->triangles[i]-1].y)  * height_scale / 2;
+        int ay = yoffset + (1.0f - model->vertices[model->triangles[i]-1].y)  * height_scale / 2;
         int bx = (1.0f + model->vertices[model->triangles[i+1]-1].x) * width_scale/ 2;
-        int by = (1.0f - model->vertices[model->triangles[i+1]-1].y ) * height_scale / 2;
+        int by = yoffset + (1.0f - model->vertices[model->triangles[i+1]-1].y ) * height_scale / 2;
         int cx = (1.0f + model->vertices[model->triangles[i+2]-1].x ) * width_scale/ 2;
-        int cy = (1.0f - model->vertices[model->triangles[i+2]-1].y)  * height_scale/ 2;
+        int cy = yoffset + (1.0f - model->vertices[model->triangles[i+2]-1].y)  * height_scale/ 2;
 
 
 
-        vector4f red = {1.0f, 0.0f, 0.0f, 1.0f};
-
-        line(ax, ay, bx, by, color_buffer, &red);
-        line(bx, by, cx, cy, color_buffer, &red);
-        line(cx, cy, ax, ay, color_buffer, &red);
+        vector4f color = rand_colors[i/3];
+        triangle_scanline(ax, ay, bx, by, cx, cy, color_buffer, &color);
     }
+    //free(color_buffer);
+}
+
+void render_wireframe(Model* model, image_view* color_buffer) {
+    int width_scale = 600;
+    int height_scale = 600;
+    int yoffset = 200;
+
+
+    for (int i = 0; i < (model->triangles_size); i += 3) {
+        
+        int ax = (1.0f + model->vertices[model->triangles[i]-1].x) * width_scale/ 2;
+        int ay = yoffset + (1.0f - model->vertices[model->triangles[i]-1].y)  * height_scale / 2;
+        int bx = (1.0f + model->vertices[model->triangles[i+1]-1].x) * width_scale/ 2;
+        int by = yoffset + (1.0f - model->vertices[model->triangles[i+1]-1].y ) * height_scale / 2;
+        int cx = (1.0f + model->vertices[model->triangles[i+2]-1].x ) * width_scale/ 2;
+        int cy = yoffset + (1.0f - model->vertices[model->triangles[i+2]-1].y)  * height_scale/ 2;
+
+        vector4f green = {0.0f, 1.0f, 0.0f, 1.0f};
+        
+        line(ax, ay, bx, by, color_buffer, &green);
+        line(bx, by, cx, cy, color_buffer, &green);
+        line(cx, cy, ax, ay, color_buffer, &green);
+    }
+}
+
+void sort_y_coordinates(vector3f* vectors, int n) {
+    int i, j;
+    bool is_swapped;
+    for (int i = 0; i < n-1; i++){
+        is_swapped = false;
+        for (int j = 0; j < n - i - 1; j++)
+        {
+            
+            if (vectors[j].y > vectors[j+1].y) {
+                vector3f tmp = vectors[j];
+                vectors[j] = vectors[j+1];
+                vectors[j+1] = tmp;
+                is_swapped = true;
+            } 
+        }
+
+        if (is_swapped == false)
+            break;
+        
+    }
+}
+
+double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
+    return .5f * ((by-ay) * (bx+ax) + (cy-by) * (cx-bx) + (ay-cy)*(ax+cx));
+}
+
+void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_view *color_buffer, vector4f *color) {
+    vector3f* vectors = (vector3f *)malloc(3* sizeof(vector3f));
+    vectors[0].x = ax;
+    vectors[0].y = ay;
+    vectors[1].x = bx;
+    vectors[1].y = by;
+    vectors[2].x = cx;
+    vectors[2].y = cy;
+
+    sort_y_coordinates(vectors, 3);
+    vector3f vector_min = vectors[0];
+    vector3f vector_mid = vectors[1];
+    vector3f vector_max = vectors[2];
+    free(vectors);
+    
+    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+    if (total_area < 1) 
+        return;
+
+
+
+    
+    //printf("%f, %f, %f \n", vector_min.y, vector_mid.y, vector_max.y);
+
+   if(vector_max.x - vector_min.x == 0 )
+    {
+        
+        //printf("%f, %f, %f \n", vector_min.x, vector_mid.x, vector_max.x);    
+        return;
+    }
+
+    //y = mx+b
+    double m1 = (vector_max.y - vector_min.y)/(vector_max.x - vector_min.x);
+    double b1 = vector_min.y - (vector_min.x * m1);
+
+    if (vector_max.x - vector_mid.x == 0)
+        return;
+
+    double m2 = (vector_max.y - vector_mid.y)/(vector_max.x - vector_mid.x);
+    double b2 = vector_mid.y - (vector_mid.x * m2);
+    //Loops draw two triangles
+    for(int row = vector_mid.y; row < vector_max.y; row++){
+        int y = row;
+        int Pt1_x = (y-b1) / m1;
+        int Pt2_x = (y-b2) / m2;
+
+        line(Pt1_x, y, Pt2_x, y, color_buffer, color);
+    
+    }
+
+    if (vector_mid.x - vector_min.x == 0)
+        return;
+
+    double m3 = (vector_mid.y - vector_min.y)/(vector_mid.x - vector_min.x);
+    double b3 = vector_min.y - (vector_min.x * m3);
+    for(int row = vector_min.y; row < vector_mid.y; row++){
+        int y = row;
+        int Pt1_x = (y-b1) / m1;
+        int Pt2_x = (y-b3) / m3;
+
+        line(Pt1_x, y, Pt2_x, y, color_buffer, color);
+        
+     }
+
+     
+
 }
 

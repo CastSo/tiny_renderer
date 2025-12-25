@@ -1,7 +1,4 @@
-
-
-#ifndef COMPONENT_H
-#define COMPONENT_H
+#pragma once
 
 typedef struct Model {
     struct vector3f* vertices;
@@ -10,4 +7,3 @@ typedef struct Model {
     int triangles_size;
 }Model;
 
-#endif
