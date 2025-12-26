@@ -30,18 +30,10 @@ void line(int ax, int ay, int bx, int by, image_view *color_buffer, vector4f *co
 
         if(steep) //de-transpose if steep
         {    
-            // if (y > color_buffer->width || x > color_buffer->height )
-            // { 
-            //     //printf("%d, %d", ax, bx);  
-            //     break;
-            // }
+
             *color_buffer->at(color_buffer, y, x) = to_color4ub(color);
         } else { 
-            // if (x > color_buffer->width || y > color_buffer->height)
-            // { 
-            //     //printf("%d, %d", ax, bx);  
-            //     break;
-            // }
+
             *color_buffer->at(color_buffer, x, y) = to_color4ub(color);
         }
         ierror += 2 * fabsf(by-ay); //measures error commited when y is more horizontal than vertical
@@ -147,8 +139,8 @@ struct Model* read_model_lines(char *file_name) {
 }
 
 void render_faces(Model* model, image_view* color_buffer, vector4f* rand_colors) {
-    int width_scale = 600;
-    int height_scale = 600;
+    int width_scale = 800;
+    int height_scale = 800;
     int yoffset = 200;
 
 
@@ -164,14 +156,14 @@ void render_faces(Model* model, image_view* color_buffer, vector4f* rand_colors)
 
 
         vector4f color = rand_colors[i/3];
-        triangle_scanline(ax, ay, bx, by, cx, cy, color_buffer, &color);
+        triangle(ax, ay, bx, by, cx, cy, color_buffer, &color);
     }
     //free(color_buffer);
 }
 
 void render_wireframe(Model* model, image_view* color_buffer) {
-    int width_scale = 600;
-    int height_scale = 600;
+    int width_scale = 800;
+    int height_scale = 800;
     int yoffset = 200;
 
 
@@ -214,9 +206,6 @@ void sort_y_coordinates(vector3f* vectors, int n) {
     }
 }
 
-double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
-    return .5f * ((by-ay) * (bx+ax) + (cy-by) * (cx-bx) + (ay-cy)*(ax+cx));
-}
 
 void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_view *color_buffer, vector4f *color) {
     vector3f* vectors = (vector3f *)malloc(3* sizeof(vector3f));
@@ -232,16 +221,10 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_vie
     vector3f vector_mid = vectors[1];
     vector3f vector_max = vectors[2];
     free(vectors);
-    
-    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
-    if (total_area < 1) 
-        return;
 
 
-
-    
     //printf("%f, %f, %f \n", vector_min.y, vector_mid.y, vector_max.y);
-
+    //Skips undefined slope
    if(vector_max.x - vector_min.x == 0 )
     {
         
@@ -253,6 +236,7 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_vie
     double m1 = (vector_max.y - vector_min.y)/(vector_max.x - vector_min.x);
     double b1 = vector_min.y - (vector_min.x * m1);
 
+    //Skips undefined slope
     if (vector_max.x - vector_mid.x == 0)
         return;
 
@@ -267,7 +251,8 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_vie
         line(Pt1_x, y, Pt2_x, y, color_buffer, color);
     
     }
-
+    
+    //Skips undefined slope
     if (vector_mid.x - vector_min.x == 0)
         return;
 
@@ -286,3 +271,32 @@ void triangle_scanline(int ax, int ay, int bx, int by, int cx, int cy, image_vie
 
 }
 
+double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
+    return .5 * ((by-ay) * (bx+ax) + (cy-by) * (cx+bx) + (ay-cy)*(ax+cx));
+}
+
+//Uses bounding box rasterization
+void triangle(int ax, int ay, int bx, int by, int cx, int cy, image_view *color_buffer, vector4f *color) {
+    int bbminx = fmin(fmin(ax, bx), cx);
+    int bbminy = fmin(fmin(ay, by), cy);
+    int bbmaxx = fmax(fmax(ax, bx), cx);
+    int bbmaxy = fmax(fmax(ay, by), cy);
+    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+    if (total_area<1) return;
+    //printf("%f \n", total_area);
+
+    
+    for (int x = bbminx; x <= bbmaxx; x++) {
+        for (int y = bbminy; y <= bbmaxy; y++) {
+            double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
+            double beta  = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
+            double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+            if (alpha<0 || beta<0 || gamma<0) 
+                continue; 
+
+            *color_buffer->at(color_buffer, x, y) = to_color4ub(color);
+        }
+    }
+
+
+}

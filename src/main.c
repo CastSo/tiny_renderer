@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
                                         0);
 
     bool run = true;
-    Model *model = read_model_lines("src/models/diablo3_pose.obj");
+    Model *model = read_model_lines("src/models/african_head.obj");
     vector4f* rand_colors = (vector4f *)malloc((model->triangles_size/3) * sizeof(vector4f));
     srand(time(NULL));
 
@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
         clear(&color_buffer, &backgroundColor);
 
         render_faces(model, &color_buffer, rand_colors);
+
         //render_wireframe(model, &color_buffer);
 
         SDL_Rect rect;
