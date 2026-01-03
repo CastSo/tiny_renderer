@@ -46,6 +46,12 @@ void line(int ax, int ay, int bx, int by, image_view *color_buffer, vector4f *co
     
 }
 
+vector3f convert_to_ndc(vector3f vec, int width, int height) {
+    return (vector3f) { (1.0f + vec.x) * width/ 2,
+                        (1.0f - vec.y) * height/ 2,
+                        vec.z};
+}
+
 struct Model* read_model_lines(char *file_name) {
     FILE *fptr = fopen(file_name, "r");
     if (fptr == NULL) {
@@ -76,7 +82,10 @@ struct Model* read_model_lines(char *file_name) {
     int face_i = 0;
 
     char* saveptr1;
-    
+
+    int width_scale = 800;
+    int height_scale = 800;
+    int yoffset = 200;
     //Checks only vertices
     while (getline(&buffer, &buffer_size, fptr) != -1) 
     {
@@ -89,11 +98,14 @@ struct Model* read_model_lines(char *file_name) {
             line = strtok_r(NULL, delim, &saveptr1);
 
             char *endptr;
-            model->vertices[vert_i].x = strtod(line, &endptr);
+            float x = strtod(line, &endptr);
+            model->vertices[vert_i].x = x;
+            
             line = strtok_r(NULL, delim, &saveptr1);
             
             endptr = NULL;
-            model->vertices[vert_i].y = strtod(line, &endptr);
+            float y = strtod(line, &endptr);
+            model->vertices[vert_i].y = y;
             line = strtok_r(NULL, delim, &saveptr1);
 
             endptr = NULL;
@@ -138,25 +150,18 @@ struct Model* read_model_lines(char *file_name) {
     return model;
 }
 
-void render_faces(Model* model, image_view* color_buffer, vector4f* rand_colors) {
+void render_faces(Model* model, image_view* color_buffer) {
     int width_scale = 800;
     int height_scale = 800;
     int yoffset = 200;
-
-
     for (int i = 0; i < (model->triangles_size); i += 3) {
         
-        int ax = (1.0f + model->vertices[model->triangles[i]-1].x) * width_scale/ 2;
-        int ay = yoffset + (1.0f - model->vertices[model->triangles[i]-1].y)  * height_scale / 2;
-        int bx = (1.0f + model->vertices[model->triangles[i+1]-1].x) * width_scale/ 2;
-        int by = yoffset + (1.0f - model->vertices[model->triangles[i+1]-1].y ) * height_scale / 2;
-        int cx = (1.0f + model->vertices[model->triangles[i+2]-1].x ) * width_scale/ 2;
-        int cy = yoffset + (1.0f - model->vertices[model->triangles[i+2]-1].y)  * height_scale/ 2;
+        vector3f a = (vector3f) project((vector3f){model->vertices[model->triangles[i]-1].x, model->vertices[model->triangles[i]-1].y, model->vertices[model->triangles[i]-1].z}, width_scale, height_scale);
+        vector3f b = (vector3f) project((vector3f){model->vertices[model->triangles[i+1]-1].x, model->vertices[model->triangles[i+1]-1].y, model->vertices[model->triangles[i+1]-1].z}, width_scale, height_scale);
+        vector3f c = (vector3f) project((vector3f){model->vertices[model->triangles[i+2]-1].x, model->vertices[model->triangles[i+2]-1].y, model->vertices[model->triangles[i+2]-1].z}, width_scale, height_scale);
 
-
-
-        vector4f color = rand_colors[i/3];
-        //triangle(ax, ay, bx, by, cx, cy, color_buffer, &color);
+        // vector4f color = rand_colors[i/3];
+        triangle(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, color_buffer);
     }
     //free(color_buffer);
 }
@@ -169,12 +174,15 @@ void render_wireframe(Model* model, image_view* color_buffer) {
 
     for (int i = 0; i < (model->triangles_size); i += 3) {
         
-        int ax = (1.0f + model->vertices[model->triangles[i]-1].x) * width_scale/ 2;
-        int ay = yoffset + (1.0f - model->vertices[model->triangles[i]-1].y)  * height_scale / 2;
-        int bx = (1.0f + model->vertices[model->triangles[i+1]-1].x) * width_scale/ 2;
-        int by = yoffset + (1.0f - model->vertices[model->triangles[i+1]-1].y ) * height_scale / 2;
-        int cx = (1.0f + model->vertices[model->triangles[i+2]-1].x ) * width_scale/ 2;
-        int cy = yoffset + (1.0f - model->vertices[model->triangles[i+2]-1].y)  * height_scale/ 2;
+        int ax = model->vertices[model->triangles[i]-1].x;
+        int ay = model->vertices[model->triangles[i]-1].y;
+        int az = model->vertices[model->triangles[i]-1].z;
+        int bx = model->vertices[model->triangles[i+1]-1].x;
+        int by = model->vertices[model->triangles[i+1]-1].y;
+        int bz = model->vertices[model->triangles[i+1]-1].z;
+        int cx = model->vertices[model->triangles[i+2]-1].x;
+        int cy = model->vertices[model->triangles[i+2]-1].y;
+        int cz = model->vertices[model->triangles[i+2]-1].z;
 
         vector4f green = {0.0f, 1.0f, 0.0f, 1.0f};
         
@@ -282,23 +290,32 @@ void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, in
     int bbmaxx = fmax(fmax(ax, bx), cx);
     int bbmaxy = fmax(fmax(ay, by), cy);
     double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
-    if (total_area<1) return;
+
     
     for (int x = bbminx; x <= bbmaxx; x++) {
         for (int y = bbminy; y <= bbmaxy; y++) {
             double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
             double beta  = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
             double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
-            if (alpha<0.0f || beta<0.0f || gamma<0.0f) 
+            if (alpha<0 || beta<0 || gamma<0) 
                 continue; 
 
-            if (alpha<0.1f || beta<0.1f || gamma<0.1f) 
-            {    
-                color4ub z = (color4ub) {(alpha * az), (beta * bz), (gamma * cz), 0.0f};
-                *color_buffer->at(color_buffer, x, y) = z;
-            }
+            color4ub z = (color4ub) {(alpha * az + beta * bz +gamma * cz), (alpha * az + beta * bz +gamma * cz), (alpha * az + beta * bz +gamma * cz), 0.0f};
+            //Discard pixel p because inferior to z
+            if (z.r <= color_buffer->at(color_buffer, x, y)->r)
+                continue;
+            
+            *color_buffer->at(color_buffer, x, y) = z;
+            
         }
     }
 
 
+}
+
+vector3f project(vector3f vec, int width, int height) {
+    return (vector3f) { (vec.x + 1.f) * width/2,
+                        (1.f - vec.y ) * height/2,
+                        (vec.z + 1.f) * 255/2
+                        };
 }

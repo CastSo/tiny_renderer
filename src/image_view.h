@@ -1,6 +1,6 @@
 #pragma once
 #include "config.h"
-#include "type.h"
+
 
 typedef struct image_view image_view, *pno;
 struct image_view {

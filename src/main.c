@@ -1,4 +1,3 @@
-#include "type.h"
 #include "image_view.h"
 #include "render.h"
 
@@ -24,23 +23,8 @@ int main(int argc, char** argv) {
                                         0);
 
     bool run = true;
-    Model *model = read_model_lines("src/models/african_head.obj");
-    vector4f* rand_colors = (vector4f *)malloc((model->triangles_size/3) * sizeof(vector4f));
-    srand(time(NULL));
-
-    for (int i = 0; i < (model->triangles_size/3); i++) {
-        float rand_f1 = (float)rand() / (float)RAND_MAX;
-
-        float rand_f2 = (float)rand() / (float)RAND_MAX;
-
-        float rand_f3 = (float)rand() / (float)RAND_MAX;
-
-        rand_colors[i].x = rand_f1;
-        rand_colors[i].y = rand_f2;
-        rand_colors[i].z = rand_f3;
-        rand_colors[i].w = 1.0f;     
-                
-    }
+    Model *model = read_model_lines("src/models/diablo3_pose.obj");
+   
     while (run) {
         SDL_Event event;
 
@@ -102,7 +86,7 @@ int main(int argc, char** argv) {
         int bx = 55, by = 39, bz = 128;
         int cx = 23, cy = 59, cz = 128;
 
-        //render_faces(model, &color_buffer, rand_colors);
+        render_faces(model, &color_buffer);
         //render_wireframe(model, &color_buffer);
         triangle(ax, ay, az, bx, by, bz, cx, cy, cz, &color_buffer);
 
@@ -122,7 +106,7 @@ int main(int argc, char** argv) {
     free(model->vertices);
     free(model->triangles);
     free(model);
-    free(rand_colors);
+
 
     SDL_DestroySurface(draw_surface);
     //SDL_DestroyEvent(event);

@@ -1,7 +1,9 @@
 #pragma once
 #include "config.h"
 
-
+typedef struct vector2f {
+    float x, y;
+} vector2f;
 
 typedef struct vector3f {
     float x, y, z;
@@ -11,19 +13,37 @@ typedef struct vector4f {
     float x, y, z, w;
 }vector4f;
 
+
+
+typedef struct matrix2f {
+    float n00, n01,
+          n10, n11;          
+}matrix2f;
+
+typedef struct matrix3f {
+    float n00, n01, n02, 
+          n10, n11, n12, 
+          n20, n21, n22;
+}matrix3f;
+
+typedef struct matrix4f {
+    float n00, n01, n02, n03,
+          n10, n11, n12, n13,
+          n20, n21, n22, n23,
+          n30, n31, n32, n33;
+}matrix4f;
+
 inline vector4f as_vector(const vector3f *v) {
     vector4f vector = {v->x, v->y, v->z, 0.0f}; 
     return vector;
 };
+
 
 inline vector4f as_point(const vector3f *v) {
     vector4f point = {v->x, v->y, v->z, 1.0f}; 
     return point;
 };
 
-vector4f subtract_vec4f(const vector4f *v0, const vector4f *v1);
-
-float determinant(const vector4f *v0, const vector4f *v1);
 
 typedef struct color4ub {
     uint8_t r, g, b, a;
