@@ -1,6 +1,2 @@
 #include "type.h"
 
-
-
-
-

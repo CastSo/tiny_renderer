@@ -151,17 +151,21 @@ struct Model* read_model_lines(char *file_name) {
 }
 
 void render_faces(Model* model, image_view* color_buffer) {
-    int width_scale = 800;
-    int height_scale = 800;
+    int width_scale = 600;
+    int height_scale = 600;
+    int xoffset = 200;
     int yoffset = 200;
     for (int i = 0; i < (model->triangles_size); i += 3) {
-        
-        vector3f a = (vector3f) project((vector3f){model->vertices[model->triangles[i]-1].x, model->vertices[model->triangles[i]-1].y, model->vertices[model->triangles[i]-1].z}, width_scale, height_scale);
-        vector3f b = (vector3f) project((vector3f){model->vertices[model->triangles[i+1]-1].x, model->vertices[model->triangles[i+1]-1].y, model->vertices[model->triangles[i+1]-1].z}, width_scale, height_scale);
-        vector3f c = (vector3f) project((vector3f){model->vertices[model->triangles[i+2]-1].x, model->vertices[model->triangles[i+2]-1].y, model->vertices[model->triangles[i+2]-1].z}, width_scale, height_scale);
+        vector3f a_rot = rotation((vector3f){model->vertices[model->triangles[i]-1].x, model->vertices[model->triangles[i]-1].y, model->vertices[model->triangles[i]-1].z});
+        vector3f b_rot = rotation((vector3f){model->vertices[model->triangles[i+1]-1].x, model->vertices[model->triangles[i+1]-1].y, model->vertices[model->triangles[i+1]-1].z});
+        vector3f c_rot = rotation((vector3f){model->vertices[model->triangles[i+2]-1].x, model->vertices[model->triangles[i+2]-1].y, model->vertices[model->triangles[i+2]-1].z});
+
+        vector3f a = (vector3f) project(perspective(a_rot), width_scale, height_scale);
+        vector3f b = (vector3f) project(perspective(b_rot), width_scale, height_scale);
+        vector3f c = (vector3f) project(perspective(c_rot), width_scale, height_scale);
 
         // vector4f color = rand_colors[i/3];
-        triangle(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, color_buffer);
+        triangle(xoffset + a.x, yoffset + a.y, a.z, xoffset + b.x, yoffset + b.y, b.z, xoffset + c.x, yoffset + c.y, c.z, color_buffer);
     }
     //free(color_buffer);
 }
@@ -318,4 +322,9 @@ vector3f project(vector3f vec, int width, int height) {
                         (1.f - vec.y ) * height/2,
                         (vec.z + 1.f) * 255/2
                         };
+}
+
+vector3f perspective(vector3f v) {
+    double c = 12.;
+    return (vector3f){v.x/(1-v.z/c), v.y/(1-v.z/c), v.z/(1-v.z/c)};
 }

@@ -15,4 +15,5 @@ void render_faces(Model* model, image_view* color_buffer);
 void render_wireframe(Model* model, image_view* color_buffer);
 
 vector3f project(vector3f vec, int width, int height);
+vector3f perspective(vector3f v);
 vector3f convert_to_ndc(vector3f vec, int width, int height);

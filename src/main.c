@@ -82,13 +82,10 @@ int main(int argc, char** argv) {
 
         //Set background color
         clear(&color_buffer, &backgroundColor);
-        int ax = 17, ay =  4, az =  128;
-        int bx = 55, by = 39, bz = 128;
-        int cx = 23, cy = 59, cz = 128;
 
         render_faces(model, &color_buffer);
         //render_wireframe(model, &color_buffer);
-        triangle(ax, ay, az, bx, by, bz, cx, cy, cz, &color_buffer);
+
 
 
         SDL_Rect rect;

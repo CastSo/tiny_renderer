@@ -10,3 +10,4 @@
 #include "./util/util.h"
 #include "./component.h"
 #include "type.h"
+#include "vector_math.h"

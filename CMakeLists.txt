@@ -37,6 +37,7 @@ add_executable(tiny_renderer WIN32
     ./src/main.c
     ./src/config.h
     ./src/type.c
+    ./src/vector_math.c
     ./src/image_view.c
     ./src/render.c
     ./src/util/util.c

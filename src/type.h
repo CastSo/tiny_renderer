@@ -1,5 +1,9 @@
 #pragma once
-#include "config.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
 
 typedef struct vector2f {
     float x, y;
