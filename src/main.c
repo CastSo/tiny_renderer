@@ -2,8 +2,8 @@
 #include "render.h"
 
 int main(int argc, char** argv) {
-    int SCR_WIDTH = 1920;
-    int SCR_HEIGHT = 1080;
+    int SCR_WIDTH = 800;
+    int SCR_HEIGHT = 800;
 
     int mouse_x = 0;
 	int mouse_y = 0;
@@ -24,6 +24,27 @@ int main(int argc, char** argv) {
 
     bool run = true;
     Model *model = read_model_lines("src/models/diablo3_pose.obj");
+
+    vector4f* rand_colors = (vector4f *)malloc((model->triangles_size/3) * sizeof(vector4f));
+
+
+
+    srand(time(NULL));
+
+
+    for (int i = 0; i < (model->triangles_size/3); i++) {
+
+        float rand_f1 = rand() %  256 ;
+        float rand_f2 = rand() %  256 ;
+        float rand_f3 = rand() %  256 ;
+
+        rand_colors[i].x = rand_f1;
+        rand_colors[i].y = rand_f2;
+        rand_colors[i].z = rand_f3;
+
+        rand_colors[i].w = 1.0f;     
+
+    }
    
     while (run) {
         SDL_Event event;
@@ -83,7 +104,7 @@ int main(int argc, char** argv) {
         //Set background color
         clear(&color_buffer, &backgroundColor);
 
-        render_faces(model, &color_buffer);
+        render_faces(model, rand_colors, &color_buffer);
         //render_wireframe(model, &color_buffer);
 
 
@@ -103,6 +124,7 @@ int main(int argc, char** argv) {
     free(model->vertices);
     free(model->triangles);
     free(model);
+    free(rand_colors);
 
 
     SDL_DestroySurface(draw_surface);

@@ -98,13 +98,13 @@ struct Model* read_model_lines(char *file_name) {
             line = strtok_r(NULL, delim, &saveptr1);
 
             char *endptr;
-            float x = strtod(line, &endptr);
+            double x = strtod(line, &endptr);
             model->vertices[vert_i].x = x;
             
             line = strtok_r(NULL, delim, &saveptr1);
             
             endptr = NULL;
-            float y = strtod(line, &endptr);
+            double y = strtod(line, &endptr);
             model->vertices[vert_i].y = y;
             line = strtok_r(NULL, delim, &saveptr1);
 
@@ -152,32 +152,37 @@ struct Model* read_model_lines(char *file_name) {
     return model;
 }
 
-void render_faces(Model* model, image_view* color_buffer) {
-    int width_scale = 800;
-    int height_scale = 800;
+void render_faces(Model* model, vector4f *colors, image_view* color_buffer) {
     int xoffset = 400;
     int yoffset = 100;
     double angle = M_PI/6;
+    double *zbuffer = malloc(sizeof(double) * color_buffer->width * color_buffer->height);
+
+
+    vector3f eye = {-1, 0, 2};
+    vector3f center = {0, 0, 0};
+    vector3f up = {0, 1, 0};
+
+    //Build matrices for perspective projection
+    matrix4f ModelView = lookat(eye, center, up);
+    matrix4f Perspective = perspective(magnitude(subtract_vec3(eye, center)));
+    matrix4f Viewport = viewport(color_buffer->width/16.f, color_buffer->height/16.f, color_buffer->width*7.f/8.f, color_buffer->height*7.f/8.f);
+   
+
     for (int i = 0; i < (model->triangles_size); i += 3) {
-        vector3f a = model->vertices[model->triangles[i]-1];
-        vector3f b = model->vertices[model->triangles[i+1]-1];
-        vector3f c = model->vertices[model->triangles[i+2]-1];
+        vector4f clip[3];
+        //printf("%f, %f, %f \n", colors[i].x, colors[i].y, colors[i].z);
+        //printf("%d\n", i);
+        for (int d = 0; d < 3; d++) {
+            vector3f v = model->vertices[model->triangles[i+d]-1];
+            clip[d] = multiply_mat4f_vec4f(multiply_mat4f(Perspective, ModelView), (vector4f){v.x, v.y, v.z, 1.});
 
-        rotation(&a, angle);
-        rotation(&b, angle);
-        rotation(&c, angle);
-        perspective(&a);
-        perspective(&b);
-        perspective(&c);
-
-        project(&a, width_scale, height_scale);
-        project(&b, width_scale, height_scale);
-        project(&c, width_scale, height_scale);
-
-        // vector4f color = rand_colors[i/3];
-        triangle(xoffset + a.x, yoffset + a.y, a.z, xoffset + b.x, yoffset + b.y, b.z, xoffset + c.x, yoffset + c.y, c.z, color_buffer);
+            //printf("clip.w=%f\n",clip[d].w);
+        }
+        
+        triangle(Viewport, zbuffer, clip, colors[i/3], color_buffer);
     }
-    //free(color_buffer);
+    free(zbuffer);
 }
 
 void render_wireframe(Model* model, image_view* color_buffer) {
@@ -298,28 +303,48 @@ double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
 }
 
 //Uses bounding box rasterization
-void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, int cz, image_view *color_buffer) {
-    int bbminx = fmin(fmin(ax, bx), cx);
-    int bbminy = fmin(fmin(ay, by), cy);
-    int bbmaxx = fmax(fmax(ax, bx), cx);
-    int bbmaxy = fmax(fmax(ay, by), cy);
-    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+void triangle(matrix4f viewport, double *zbuffer, vector4f clip[3], vector4f color, image_view *color_buffer) {
+    vector4f ndc[3] = {
+        { clip[0].x / clip[0].w, clip[0].y / clip[0].w, clip[0].z / clip[0].w, 1.0f },
+        { clip[1].x / clip[1].w, clip[1].y / clip[1].w, clip[1].z / clip[1].w, 1.0f },
+        { clip[2].x / clip[2].w, clip[2].y / clip[2].w, clip[2].z / clip[2].w, 1.0f }
+    };
 
+    vector4f screen[3] = {
+        multiply_mat4f_vec4f(viewport, ndc[0]), 
+        multiply_mat4f_vec4f(viewport, ndc[1]), 
+        multiply_mat4f_vec4f(viewport, ndc[2])};
+
+    matrix3f ABC = {
+        screen[0].x, screen[0].y, 1.,
+        screen[1].x, screen[1].y, 1., 
+        screen[2].x, screen[2].y, 1.      
+    };
+
+   // printf("%f \n",determinant(ABC));
+    if(determinant(ABC) < 1) return;
+
+    int bbminx = fmin(fmin(screen[0].x, screen[1].x), screen[2].x);
+    int bbminy = fmin(fmin(screen[0].y, screen[1].y), screen[2].y);
+    int bbmaxx = fmax(fmax(screen[0].x, screen[1].x), screen[2].x);
+    int bbmaxy = fmax(fmax(screen[0].y, screen[1].y), screen[2].y);
     
-    for (int x = bbminx; x <= bbmaxx; x++) {
-        for (int y = bbminy; y <= bbmaxy; y++) {
-            double alpha = signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
-            double beta  = signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
-            double gamma = signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
-            if (alpha<0 || beta<0 || gamma<0) 
-                continue; 
+    for (int x = fmax(bbminx, 0); x <= fmin(bbmaxx, color_buffer->width-1); x++) {
+        for (int y = fmax(bbminy,0); y <= fmin(bbmaxy, color_buffer->height-1); y++) {
+            //printf("%d, %d \n", x, y);
+            vector3f bc = multiply_mat3f_vec3f(inverse(transpose_mat3f(ABC)), (vector3f){(double)x, (double) y, 1.});
+            if (bc.x < 0 || bc.y < 0 || bc.z < 0) 
+                continue;
 
-            color4ub z = (color4ub) {(alpha * az + beta * bz +gamma * cz), (alpha * az + beta * bz +gamma * cz), (alpha * az + beta * bz +gamma * cz), 0.0f};
-            //Discard pixel p because inferior to z
-            if (z.r <= color_buffer->at(color_buffer, x, y)->r)
+            double z = dot_vec3f(bc, (vector3f){ndc[0].z, ndc[1].z, ndc[2].z});
+
+            //Discard pixel p because inferior to z;
+            if (z <= zbuffer[x+y*color_buffer->width])
                 continue;
             
-            *color_buffer->at(color_buffer, x, y) = z;
+            zbuffer[x+y*color_buffer->width] = z;
+            
+            *color_buffer->at(color_buffer, x, y) = (color4ub){color.x, color.y, color.z, color.w};
             
         }
     }

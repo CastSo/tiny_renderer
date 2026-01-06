@@ -6,32 +6,32 @@
 #include <math.h>
 
 typedef struct vector2f {
-    float x, y;
+    double x, y;
 } vector2f;
 
 typedef struct vector3f {
-    float x, y, z;
+    double x, y, z;
 }vector3f;
 
 typedef struct vector4f {
-    float x, y, z, w;
+    double x, y, z, w;
 }vector4f;
 
 
 
 typedef struct matrix2f {
-    float n00, n01,
+    double n00, n01,
           n10, n11;          
 }matrix2f;
 
 typedef struct matrix3f {
-    float n00, n01, n02, 
+    double n00, n01, n02, 
           n10, n11, n12, 
           n20, n21, n22;
 }matrix3f;
 
 typedef struct matrix4f {
-    float n00, n01, n02, n03,
+    double n00, n01, n02, n03,
           n10, n11, n12, n13,
           n20, n21, n22, n23,
           n30, n31, n32, n33;

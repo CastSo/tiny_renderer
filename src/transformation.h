@@ -5,5 +5,9 @@
 #define _USE_MATH_DEFINES
 
 void project(vector3f *v, int width, int height);
-void perspective(vector3f *v);
+
+matrix4f viewport(int x, int y, int w, int h);
+matrix4f perspective(double f);
+matrix4f lookat(vector3f eye, vector3f center, vector3f up); 
+
 void rotation(vector3f *v, double a);

@@ -7,9 +7,30 @@ void project(vector3f *v, int width, int height) {
                         };
 }
 
-void perspective(vector3f *v) {
-    double c = 12.;
-    *v = (vector3f){v->x/(1-v->z/c), v->y/(1-v->z/c), v->z/(1-v->z/c)};
+matrix4f viewport(int x, int y, int w, int h) {
+    return (matrix4f){
+        w/2., 0, 0, x+w/2., 
+        0, h/2., 0, y+h/2., 
+        0, 0, 1, 0, 
+        0, 0, 0, 1};
+}
+
+matrix4f perspective(double f) {
+    return (matrix4f){
+        1, 0, 0, 0, 
+        0, 1, 0, 0, 
+        0, 0, 1, 0, 
+        0, 0, -1/f, 1};
+}
+
+matrix4f lookat(vector3f eye, vector3f center, vector3f up) {
+    vector3f n = normalize(subtract_vec3(eye, center));
+    vector3f l = normalize(cross(up, n));
+    vector3f m = normalize(cross(n, (vector3f){1}));
+    matrix4f mat1 = {l.x,l.y,l.z,0, m.x,m.y,m.z,0, n.x,n.y,n.z,0, 0,0,0,1};
+    matrix4f mat2 = {1,0,0,-center.x, 0,1,0,-center.y, 0,0,1,-center.z, 0,0,0,1};
+    return multiply_mat4f(mat1, mat2);
+
 }
 
 void rotation(vector3f *v, double a) {
