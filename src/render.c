@@ -119,10 +119,13 @@ void render_faces(Shader *shader, double *zbuffer, image_view* color_buffer) {
   
     double angle = 45*M_PI/180;
     
-    vector4f color = {75.0f, 75.0f, 75.0f, 1.0f};
+    vector4f color = {255.0f, 255.0f, 255.0f, 255.0f};
+
+
 
     for (int v = 0; v < (shader->model->triangles_size); v += 3) {
         vector4f clip[3];
+        vector4f eye[3];
         //printf("%f, %f, %f \n", colors[i].x, colors[i].y, colors[i].z);
         //printf("%d\n", i);
         for (int f = 0; f < 3; f++) {
@@ -130,11 +133,11 @@ void render_faces(Shader *shader, double *zbuffer, image_view* color_buffer) {
             // rotation(&shader->model->vertices[shader->model->triangles[f+v]-1], angle);
             pipe_vertex(shader, f, v);
             clip[f] = shader->vertex;
-
+            eye[f] = shader->tri_eye;
             //printf("clip.w=%f\n",clip[f].w);
         }
         
-        triangle(shader->Viewport, zbuffer, clip, color, color_buffer);
+        triangle(shader->Viewport, zbuffer, eye, clip, color, color_buffer);
     }
     
 }
@@ -296,9 +299,10 @@ double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
 }
 
 //Uses bounding box rasterization
-void triangle(matrix4f viewport, double *zbuffer, vector4f clip[3], vector4f color, image_view *color_buffer) {
+void triangle(matrix4f viewport, double *zbuffer, vector4f eye[3], vector4f clip[3], vector4f color, image_view *color_buffer) {
 
     vector3f sun_pos = {1, 0, 0};
+    vector3f cam_pos = {-1, 0, 2};
 
 
     vector4f ndc[3] = {
@@ -312,23 +316,24 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f clip[3], vector4f col
         multiply_mat4f_vec4f(viewport, ndc[1]), 
         multiply_mat4f_vec4f(viewport, ndc[2])};
     
-    //Triangle ABC    
+    //Triangle ABC in screen coordinates   
     matrix3f ABC = {
         screen[0].x, screen[0].y, 1.,
         screen[1].x, screen[1].y, 1., 
         screen[2].x, screen[2].y, 1.      
     };
-
-    vector3f AB = subtract_vec3((vector3f){screen[0].x, screen[0].y, 1.}, (vector3f){screen[1].x, screen[1].y, 1.});
-    vector3f AC = subtract_vec3((vector3f){screen[0].x, screen[0].y, 1.}, (vector3f){screen[2].x, screen[2].y, 1.});
-    vector3f vec_n = normalize(subtract_vec3(AB, AC));
-    vector3f vec_l = normalize(sun_pos);
-    double diffuse =  abs(dot_vec3f(vec_n,vec_l));
-
-    //vector3f vec_r = subtract_vec3(scale_vec3(scale_vec3(vec_n,2), dot_vec3f(vec_n, vec_l)), vec_l);
-
-
+    //Uses eye coordinates to get triangle vectors
+    vector3f AB = subtract_vec3((vector3f){eye[0].x, eye[0].y, eye[0].z}, (vector3f){eye[1].x, eye[1].y, eye[1].z});
+    vector3f AC = subtract_vec3((vector3f){eye[0].x, eye[0].y, eye[0].z}, (vector3f){eye[2].x, eye[2].y, eye[2].z});
+    vector3f vec_n = normalize(cross(AB, AC)); // orthogonal to triangle
+    vector3f vec_l = normalize(sun_pos); // direction toward sun
+    double diffuse = fmax(0,dot_vec3f(vec_n,vec_l));
     
+    int e = 1;
+    vector3f vec_v = normalize(cam_pos); //fragment to sun
+    vector3f vec_r = subtract_vec3(scale_vec3(scale_vec3(vec_n,2), dot_vec3f(vec_n, vec_l)), vec_l); //reflection of sun
+    double specular = pow(fmax(0, dot_vec3f(vec_r, vec_v)), e); 
+
     //printf("%f \n",screen[0].x);
     if(determinant(ABC) < 1) return;
 
@@ -336,7 +341,7 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f clip[3], vector4f col
     int bbminy = fmin(fmin(screen[0].y, screen[1].y), screen[2].y);
     int bbmaxx = fmax(fmax(screen[0].x, screen[1].x), screen[2].x);
     int bbmaxy = fmax(fmax(screen[0].y, screen[1].y), screen[2].y);
-    
+   // printf("%f \n", diffuse);
     for (int x = fmax(bbminx, 0); x <= fmin(bbmaxx, color_buffer->width-1); x++) {
         for (int y = fmax(bbminy,0); y <= fmin(bbmaxy, color_buffer->height-1); y++) {
             //printf("%d, %d \n", x, y);
@@ -358,7 +363,7 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f clip[3], vector4f col
             //y growing downward
             //*color_buffer->at(color_buffer, x, (color_buffer->width-y)) = (color4ub){color.x, color.y, color.z, color.w};
 
-            *color_buffer->at(color_buffer, x, (color_buffer->width-y)) = (color4ub){ diffuse* color.x, diffuse * color.y, diffuse * color.z, color.w};
+            *color_buffer->at(color_buffer, x, (color_buffer->width-y)) = (color4ub){ specular* color.x, specular * color.y, specular * color.z, color.w};
         }
     }
 

@@ -17,7 +17,7 @@ typedef struct  Shader Shader;
 struct Shader {
     Model *model;
     vector4f color;
-    vector3f tri_eye[3];
+    vector4f tri_eye;
     vector4f vertex;
     matrix4f ModelView;
     matrix4f Perspective;

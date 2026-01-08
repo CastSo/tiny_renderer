@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
         color_buffer.pixels = (color4ub *)draw_surface->pixels,
         color_buffer.width = SCR_WIDTH;
         color_buffer.height = SCR_HEIGHT;
-        vector4f backgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
+        vector4f backgroundColor = {0.86f, 0.78f, 0.56f, 1.0f};
         
         color_buffer.at = image_view_at;
 
