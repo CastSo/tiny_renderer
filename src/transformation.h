@@ -38,5 +38,5 @@ matrix4f viewport(int x, int y, int w, int h);
 matrix4f perspective(double f);
 matrix4f lookat(vector3f eye, vector3f center, vector3f up); 
 
-void rotation(vector3f *v, double a);
-
+void rotation(vector4f *v, double a);
+void scale(vector4f* v, vector3f s);

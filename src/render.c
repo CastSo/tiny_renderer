@@ -18,17 +18,15 @@ vector3f convert_to_ndc(vector3f vec, int width, int height) {
 
 
 void render_faces(Shader *shader, double *zbuffer, image_view* color_buffer) {
-  
-    double angle = 45*M_PI/180;
+
     
     vector4f color = {255.0f, 255.0f, 255.0f, 255.0f};
-
-
 
     for (int v = 0; v < (shader->model->triangles_size); v += 3) {
         vector4f clip[3];
         vector4f eye[3];
         vector4f texture[3];
+        vector4f normal[3];
 
 
         for (int f = 0; f < 3; f++) {
@@ -38,10 +36,10 @@ void render_faces(Shader *shader, double *zbuffer, image_view* color_buffer) {
             clip[f] = shader->clip;
             eye[f] = shader->eye;
             texture[f] = shader->texture;
-            //printf("clip.w=%f\n",clip[f].w);
+            normal[f] = shader->normal;
         }
         
-        triangle(shader->Viewport, zbuffer, texture, eye, clip, color, color_buffer);
+       triangle(shader->Viewport, zbuffer, normal, texture, eye, clip, color, color_buffer);
     }
     
 }
@@ -203,7 +201,7 @@ double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
 }
 
 //Uses bounding box rasterization
-void triangle(matrix4f viewport, double *zbuffer, vector4f texture[3], vector4f eye[3], vector4f clip[3], vector4f color, image_view *color_buffer) {
+void triangle(matrix4f viewport, double *zbuffer, vector4f normal[3], vector4f texture[3], vector4f eye[3], vector4f clip[3], vector4f color, image_view *color_buffer) {
     
     vector3f sun_pos = {1, 0, 0};
     vector3f cam_pos = {-1, 0, 2};
@@ -233,7 +231,7 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f texture[3], vector4f 
     int bbmaxx = fmax(fmax(screen[0].x, screen[1].x), screen[2].x);
     int bbmaxy = fmax(fmax(screen[0].y, screen[1].y), screen[2].y);
     double total_area = signed_triangle_area(screen[0].x, screen[0].y, screen[1].x, screen[1].y, screen[2].x, screen[2].y);
-   // printf("%f \n", diffuse);
+
    #pragma omp parallel for
     for (int x = fmax(bbminx, 0); x <= fmin(bbmaxx, color_buffer->width-1); x++) {
         for (int y = fmax(bbminy,0); y <= fmin(bbmaxy, color_buffer->height-1); y++) {
@@ -241,12 +239,12 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f texture[3], vector4f 
             double beta  = signed_triangle_area(x, y, screen[2].x, screen[2].y, screen[0].x, screen[0].y) / total_area;
             double gamma = signed_triangle_area(x, y, screen[0].x, screen[0].y, screen[1].x, screen[1].y) / total_area;
 
-            vector3f AB = subtract_vec3((vector3f){texture[0].x, texture[0].y, texture[0].z}, (vector3f){texture[1].x, texture[1].y, texture[1].z});
-            vector3f AC = subtract_vec3((vector3f){texture[0].x, texture[0].y, texture[0].z}, (vector3f){texture[2].x, texture[2].y, texture[2].z});
+            vector3f AB = subtract_vec3((vector3f){normal[0].x, normal[0].y, normal[0].z}, (vector3f){normal[1].x, normal[1].y, normal[1].z});
+            vector3f AC = subtract_vec3((vector3f){normal[0].x, normal[0].y, normal[0].z}, (vector3f){normal[2].x, normal[2].y, normal[2].z});
 
 
-            vector3f n = add_vec3(add_vec3((vector3f){texture[0].x, texture[0].y, texture[0].z}, (vector3f){texture[1].x, texture[1].y, texture[1].z}), (vector3f){texture[2].x, texture[2].y, texture[2].z});
-            vector3f vec_n = normalize((vector3f){n.x * 2.0 - 1.0, n.y* 2.0 - 1.0, n.x *  2.0 - 1.0});
+            vector3f n = add_vec3(add_vec3(scale_vec3((vector3f){normal[0].x, normal[0].y, normal[0].z}, alpha), scale_vec3((vector3f){normal[1].x, normal[1].y, normal[1].z},beta)), scale_vec3((vector3f){normal[2].x, normal[2].y, normal[2].z}, gamma));
+            vector3f vec_n = normalize(n);
             vector3f vec_l = normalize(sun_pos); // direction toward sun
             
             
@@ -269,11 +267,15 @@ void triangle(matrix4f viewport, double *zbuffer, vector4f texture[3], vector4f 
                 continue;
 
             zbuffer[x+y*color_buffer->width] = z;
-            //printf("%f, %f, %f \n", specular*color.x, specular*color.y, specular*color.z);
+
+            int normal_y = color_buffer->width-y-1;
             
-            color4ub color_rgba =  { specular* color.x , specular * color.y, specular * color.z, color.w};
+            //Do not exceed screen :)
+            if(x < 0 || x >= color_buffer->width || normal_y < 0 || normal_y >= color_buffer->height) 
+                continue;
+
             //y growing downward
-            *color_buffer->at(color_buffer, x, (color_buffer->width-y)) = color_rgba;
+            *color_buffer->at(color_buffer, x, normal_y) = (color4ub) { specular* color.x , specular * color.y, specular * color.z, color.w};
             
         }
     }

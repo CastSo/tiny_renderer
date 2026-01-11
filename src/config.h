@@ -14,3 +14,6 @@
 #include "type.h"
 #include "vector_math.h"
 #include "transformation.h"
+
+#define NK_IMPLEMENTATION
+#include "../dependencies/nuklear.h"

@@ -2,15 +2,26 @@
 
 
  void pipe_vertex(Shader *shader, int face, int vert) {
-    
+    double angle = 90*M_PI/180;
     vector3f v = shader->model->vertices[shader->model->triangles[face+vert]-1];
     vector3f t = shader->model->textures[shader->model->triangles[face+vert]-1];
+    vector3f n = shader->model->normals[shader->model->triangles[face+vert]-1];
     vector4f position = multiply_mat4f_vec4f(shader->ModelView, (vector4f){v.x, v.y, v.z, 1.}); // in object coordinates
     vector3f t_norm =  normalize(t);
+    shader->normal =  multiply_mat4f_vec4f(shader->ModelView, (vector4f){n.x, n.y, n.z, 0.}); 
     shader->texture =  multiply_mat4f_vec4f(shader->ModelView, (vector4f){t_norm.x, t_norm.y, t_norm.z, 0.}); 
-   
+    
     shader->eye = (vector4f){position.x, position.y, position.z, position.w}; //in eye coordinates
     shader->clip = multiply_mat4f_vec4f(shader->Perspective, position); // in clip coordinates
+
+    // rotation(&shader->normal, angle);
+    // rotation(&shader->eye, angle);
+    // rotation(&shader->clip, angle);
+
+    scale(&shader->normal, (vector3f){0.1, 0.1, 0.1});
+    scale(&shader->eye, (vector3f){0.1, 0.1, 0.1});
+    scale(&shader->clip, (vector3f){0.1, 0.1, 0.1});
+
 }
 
 void project(vector3f *v, int width, int height) {
@@ -46,10 +57,20 @@ matrix4f lookat(vector3f eye, vector3f center, vector3f up) {
 
 }
 
-void rotation(vector3f *v, double a) {
+void rotation(vector4f *v, double a) {
     
     matrix3f mat = (matrix3f){cos(a), 0, sin(a),
                                 0,  1,  0,
                               -sin(a), 0, cos(a)};
-    *v = multiply_mat3f_vec3f(mat, *v);
+    vector3f v_vec3 = multiply_mat3f_vec3f(mat, (vector3f){v->x, v->y, v->z});
+    *v = (vector4f){v_vec3.x, v_vec3.y, v_vec3.z, v->w};
+}
+
+void scale(vector4f* v, vector3f s) {
+    matrix3f mat = (matrix3f){s.x, 0, 0,
+                               0, s.y,0,
+                               0, 0, s.z};
+
+    vector3f v_vec3 = multiply_mat3f_vec3f(mat, (vector3f){v->x, v->y, v->z});
+    *v = (vector4f){v_vec3.x, v_vec3.y, v_vec3.z, v->w};
 }

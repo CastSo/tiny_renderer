@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     vector3f cam_up = {0, 1, 0};
 
     Shader *shader = malloc(sizeof(Shader));
-    shader->model = read_model_lines("src/models/african_head.obj");
+    shader->model = read_model_lines("src/models/utah_teapot.obj");
     
     shader->ModelView = lookat(cam_eye, cam_direction, cam_up);
     shader->Perspective = perspective(norm(subtract_vec3(cam_eye, cam_direction)));
@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
         zbuffer[z] = -DBL_MAX;
     }
 
+    printf("%d", shader->model->vertices_size);
 
     while (run) {
         SDL_Event event;
@@ -110,7 +111,7 @@ int main(int argc, char** argv) {
             zbuffer[z] = -DBL_MAX;
         }
 
-        //render_wireframe(model, &color_buffer);
+        //render_wireframe(shader->model, &color_buffer);
 
 
 
@@ -124,6 +125,7 @@ int main(int argc, char** argv) {
 
         SDL_UpdateWindowSurface(window);
     }
+    
 
     
     free(zbuffer);

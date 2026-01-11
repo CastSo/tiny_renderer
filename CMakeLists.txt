@@ -33,6 +33,7 @@ else()
     message(STATUS "Using local SDL3")
 endif()
 
+
 add_executable(tiny_renderer WIN32 
     ./src/main.c
     ./src/config.h
@@ -43,6 +44,7 @@ add_executable(tiny_renderer WIN32
     ./src/image_view.c
     ./src/render.c
     ./src/util/util.c
+    ./dependencies
     ./src/component.h)
 
 # set the include directory
