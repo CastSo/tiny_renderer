@@ -35,8 +35,8 @@ endif()
 
 
 add_executable(tiny_renderer WIN32 
-    ./src/main.c
     ./src/config.h
+    ./src/main.c
     ./src/type.c
     ./src/vector_math.c
     ./src/model.c
@@ -44,27 +44,21 @@ add_executable(tiny_renderer WIN32
     ./src/image_view.c
     ./src/render.c
     ./src/util/util.c
-    ./src/component.h)
+    ./src/component.h
+    #./dependencies/nuklear/nuklear_config.c
+    )
 
 # set the include directory
-target_include_directories(tiny_renderer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
+target_include_directories(tiny_renderer PUBLIC src dependencies)
 
-target_compile_definitions(tiny_renderer PRIVATE SDL_MAIN_USE_CALLBACKS)
-#target_compile_definitions(tiny_renderer PRIVATE 
-#
-#    NK_INCLUDE_STANDARD_VARARGS
-#    NK_INCLUDE_STANDARD_IO
-#    NK_INCLUDE_FONT_BAKING
-#    NK_INCLUDE_DEFAULT_FONT
-#    NK_INCLUDE_COMMAND_USERDATA
-#    NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-#    NK_INCLUDE_FIXED_TYPES
-#    NK_KEYSTATE_BASED_INPUT
-#
-#)
+#target_compile_definitions(tiny_renderer PRIVATE SDL_MAIN_USE_CALLBACKS)
+
 
 # link all libraries to the project
-target_link_libraries(tiny_renderer PRIVATE SDL3::SDL3 m)
+target_link_libraries(tiny_renderer PRIVATE 
+                                m
+                                SDL3::SDL3 
+                                    )
 
 target_compile_options(tiny_renderer  PRIVATE -fsanitize=address)
 target_link_options(tiny_renderer  PRIVATE -fsanitize=address)

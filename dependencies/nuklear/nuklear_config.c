@@ -9,10 +9,6 @@
 #include <time.h>
 
 #include <SDL3/SDL.h>
-// #define SDL_MAIN_USE_CALLBACKS
-// #include <SDL3/SDL_main.h>
-
-
 /* ===============================================================
  *
  *                          CONFIG
@@ -99,19 +95,7 @@
 
 
 #define NK_IMPLEMENTATION
-#include "nuklear/nuklear.h"
+#include "nuklear.h"
 
 #define NK_SDL3_RENDERER_IMPLEMENTATION
-#include "nuklear/nuklear_sdl3_renderer.h"
-
- struct nk_sdl_app {
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    struct nk_context * ctx;
-    struct nk_colorf bg;
-    enum nk_anti_aliasing AA;
-};
-
-int main(int argc, char** argv) {
-
-}
+#include "nuklear_sdl3_renderer.h"

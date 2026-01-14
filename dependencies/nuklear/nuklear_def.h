@@ -1,17 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <math.h>
-#include <assert.h>
-#include <limits.h>
-#include <time.h>
-
-#include <SDL3/SDL.h>
-// #define SDL_MAIN_USE_CALLBACKS
-// #include <SDL3/SDL_main.h>
-
+#include "config.h"
 
 /* ===============================================================
  *
@@ -97,21 +84,5 @@
 
 
 
-
-#define NK_IMPLEMENTATION
-#include "nuklear/nuklear.h"
-
-#define NK_SDL3_RENDERER_IMPLEMENTATION
-#include "nuklear/nuklear_sdl3_renderer.h"
-
- struct nk_sdl_app {
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    struct nk_context * ctx;
-    struct nk_colorf bg;
-    enum nk_anti_aliasing AA;
-};
-
-int main(int argc, char** argv) {
-
-}
+#include "nuklear.h"
+#include "nuklear_sdl3_renderer.h"
