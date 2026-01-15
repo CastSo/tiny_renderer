@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.28.3)
 project(tiny_renderer C)
 
-set(CMAKE_C_STANDARD 23)
+
 
 # Include the command that downloads libraries
 include(FetchContent)
@@ -33,32 +33,41 @@ else()
     message(STATUS "Using local SDL3")
 endif()
 
+find_package(OpenGL REQUIRED)
+
 
 add_executable(tiny_renderer WIN32 
-    ./src/config.h
+   ./src/config.h
     ./src/main.c
-    ./src/type.c
-    ./src/vector_math.c
-    ./src/model.c
-    ./src/transformation.c
-    ./src/image_view.c
-    ./src/render.c
-    ./src/util/util.c
-    ./src/component.h
-    #./dependencies/nuklear/nuklear_config.c
+   ./src/type.c
+   ./src/vector_math.c
+   ./src/model.c
+   ./src/transformation.c
+   ./src/image_view.c
+   ./src/render.c
+   ./src/util/util.c
+   ./src/component.h
+   ./dependencies/microui/microui.c
+    ./dependencies/microui/microui_renderer.c
+    ${IMGUI_SOURCES}
     )
 
+set_target_properties(tiny_renderer PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+
 # set the include directory
-target_include_directories(tiny_renderer PUBLIC src dependencies)
+target_include_directories(tiny_renderer PUBLIC 
+    src 
+    dependencies/microui)
 
-#target_compile_definitions(tiny_renderer PRIVATE SDL_MAIN_USE_CALLBACKS)
 
 
+target_compile_definitions(tiny_renderer PRIVATE CIMGUI_DEFINE_ENUMS_AND_STRUCTS=1)
 # link all libraries to the project
 target_link_libraries(tiny_renderer PRIVATE 
                                 m
-                                SDL3::SDL3 
-                                    )
+                                SDL3::SDL3
+                                OpenGL::GL)
 
 target_compile_options(tiny_renderer  PRIVATE -fsanitize=address)
 target_link_options(tiny_renderer  PRIVATE -fsanitize=address)

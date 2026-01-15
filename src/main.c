@@ -1,117 +1,422 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <math.h>
-#include <assert.h>
-#include <limits.h>
-#include <time.h>
 
-#include <SDL3/SDL.h>
-// #define SDL_MAIN_USE_CALLBACKS
-// #include <SDL3/SDL_main.h>
+#include "image_view.h"
+#include "render.h"
+#include "model.h"
+#include <GL/gl.h>
+#include "microui.h"
+#include "microui_renderer.h"
+#include "atlas.inl"
 
+static SDL_Renderer *renderer = NULL;
 
-/* ===============================================================
- *
- *                          CONFIG
- *
- * ===============================================================*/
+static int text_width(mu_Font font, const char *text, int len) {
+    if (len == -1) { len = strlen(text); }
+    return r_get_text_width(text, len);
+}
 
-/* optional: sdl3_renderer does not need any of these defines
- * (but some examples might need them, so be careful) */
-#define NK_INCLUDE_STANDARD_VARARGS
-#define NK_INCLUDE_STANDARD_IO
+static int text_height(mu_Font font) {
+    return r_get_text_height();
+}
 
-/* note that sdl3_renderer comes with nk_sdl_style_set_debug_font()
- * so you may wish to use that instead of font baking */
-#define NK_INCLUDE_FONT_BAKING
-#define NK_INCLUDE_DEFAULT_FONT
-
-/* note that sdl3_renderer comes with nk_sdl_allocator()
- * and you probably want to use that allocator instead of the default ones */
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
-
-/* mandatory: sdl3_renderer depends on those defines */
-#define NK_INCLUDE_COMMAND_USERDATA
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-
-
-/* We can re-use the types provided by SDL which are extremely portable,
- * so there is no need for Nuklear to detect those on its own */
-#define NK_INCLUDE_FIXED_TYPES
-
-
-/* FIXME: We could also use the `bool` symbol provided by SDL,
- * but this is currently broken due to internal Nuklear issue, see:
- * https://github.com/Immediate-Mode-UI/Nuklear/issues/849
- * */
-#define NK_INCLUDE_STANDARD_BOOL
-#ifndef NK_INCLUDE_STANDARD_BOOL
-    #define NK_BOOL               bool
-#endif
-
-/* We can re-use various portable libc functions provided by SDL */
-#define NK_ASSERT(condition)      SDL_assert(condition)
-#define NK_STATIC_ASSERT(exp)     SDL_COMPILE_TIME_ASSERT(, exp)
-#define NK_MEMSET(dst, c, len)    SDL_memset(dst, c, len)
-#define NK_MEMCPY(dst, src, len)  SDL_memcpy(dst, src, len)
-#define NK_VSNPRINTF(s, n, f, a)  SDL_vsnprintf(s, n, f, a)
-#define NK_STRTOD(str, endptr)    SDL_strtod(str, endptr)
-
-/* sadly, SDL3 does not provide "dtoa" (only integer version) */
-/*#define NK_DTOA (str, d)*/
-
-/* SDL can also provide us with math functions, but beware that Nuklear's own
- * implementation can be slightly faster at the cost of some precision */
-#define NK_INV_SQRT(f)            (1.0f / SDL_sqrtf(f))
-#define NK_SIN(f)                 SDL_sinf(f)
-#define NK_COS(f)                 SDL_cosf(f)
-
-/* HACK: Nuklear pulls two stb libraries in order to use font baking
- * those libraries pull in some libc headers internally, creating a linkage dependency,
- * so you’ll most likely want to use SDL symbols instead */
-#define STBTT_ifloor(x)       ((int)SDL_floor(x))
-#define STBTT_iceil(x)        ((int)SDL_ceil(x))
-#define STBTT_sqrt(x)         SDL_sqrt(x)
-#define STBTT_pow(x,y)        SDL_pow(x,y)
-#define STBTT_fmod(x,y)       SDL_fmod(x,y)
-#define STBTT_cos(x)          SDL_cosf(x)
-#define STBTT_acos(x)         SDL_acos(x)
-#define STBTT_fabs(x)         SDL_fabs(x)
-#define STBTT_assert(x)       SDL_assert(x)
-#define STBTT_strlen(x)       SDL_strlen(x)
-#define STBTT_memcpy          SDL_memcpy
-#define STBTT_memset          SDL_memset
-#define stbtt_uint8           Uint8
-#define stbtt_int8            Sint8
-#define stbtt_uint16          Uint16
-#define stbtt_int16           Sint16
-#define stbtt_uint32          Uint32
-#define stbtt_int32           Sint32
-#define STBRP_SORT            SDL_qsort
-#define STBRP_ASSERT          SDL_assert
-/* There is no need to define STBTT_malloc/STBTT_free macros
- * Nuklear will define those to user-provided nk_allocator */
-
-
-
-
-#define NK_IMPLEMENTATION
-#include "nuklear/nuklear.h"
-
-#define NK_SDL3_RENDERER_IMPLEMENTATION
-#include "nuklear/nuklear_sdl3_renderer.h"
-
- struct nk_sdl_app {
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    struct nk_context * ctx;
-    struct nk_colorf bg;
-    enum nk_anti_aliasing AA;
+static const char button_map[256] = {
+  [ SDL_BUTTON_LEFT   & 0xff ] =  MU_MOUSE_LEFT,
+  [ SDL_BUTTON_RIGHT  & 0xff ] =  MU_MOUSE_RIGHT,
+  [ SDL_BUTTON_MIDDLE & 0xff ] =  MU_MOUSE_MIDDLE,
 };
 
-int main(int argc, char** argv) {
+static const char key_map[256] = {
+  [ SDLK_LSHIFT       & 0xff ] = MU_KEY_SHIFT,
+  [ SDLK_RSHIFT       & 0xff ] = MU_KEY_SHIFT,
+  [ SDLK_LCTRL        & 0xff ] = MU_KEY_CTRL,
+  [ SDLK_RCTRL        & 0xff ] = MU_KEY_CTRL,
+  [ SDLK_LALT         & 0xff ] = MU_KEY_ALT,
+  [ SDLK_RALT         & 0xff ] = MU_KEY_ALT,
+  [ SDLK_RETURN       & 0xff ] = MU_KEY_RETURN,
+  [ SDLK_BACKSPACE    & 0xff ] = MU_KEY_BACKSPACE,
+};
 
+
+
+int main(int argc, char** argv) {
+    //Initialize microui 
+    mu_Context *ctx = malloc(sizeof(mu_Context));
+    mu_init(ctx);
+    SDL_SetAppMetadata("Corolla", "0.0.0", "com.ktjst.corolla");
+
+    ctx->text_width = text_width;
+    ctx->text_height = text_height;
+
+    mu_begin(ctx);
+
+    int SCR_WIDTH = 1000;
+    int SCR_HEIGHT = 1000;
+
+    int mouse_x = 0;
+	int mouse_y = 0;
+
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Surface * draw_surface = NULL; 
+
+    bool success = SDL_Init(SDL_INIT_VIDEO);
+    if( !success ) {
+        SDL_Log("SDL initialization failed!: %s\n", SDL_GetError());
+    }
+
+    SDL_Window *gpu_win = NULL;
+    if(!SDL_CreateWindowAndRenderer("Tiny UI", SCR_WIDTH, SCR_HEIGHT, 0, &gpu_win, &renderer)) {
+        SDL_Log("gpu_win init failed");
+        return 1;
+    }
+
+    SDL_Window *window = SDL_CreateWindow("Tiny Renderer", SCR_WIDTH, SCR_HEIGHT, 0);
+
+        //Surface for gui
+    unsigned char pixels[128*128*4];
+    
+    int c = 0;
+    for(int i = 0; i < 128 * 128; i++) {
+        pixels[c] = atlas_texture[i];
+        pixels[c+1] = atlas_texture[i];
+        pixels[c+2] = atlas_texture[i];
+        pixels[c+3] = 255;
+        c+=4;
+    }
+    
+
+    SDL_Surface *sur = SDL_CreateSurfaceFrom(128, 128, SDL_PIXELFORMAT_XRGB8888, pixels, 4 * 128);
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, sur);
+    
+        
+    bool run = true;
+    
+    vector3f cam_pos = {0, 0, 6};
+    vector3f cam_direction = {0, 0, 0};
+    vector3f cam_up = {0, 1, 0};
+    
+    Shader *obj_model = malloc(sizeof(Shader));
+    obj_model->model = read_model_lines("./src/models/african_head.obj");
+    obj_model->model->color = (vector4f) {255.0f, 255.0f, 255.0f, 255.0f};
+    obj_model->model->scale = 0.5f;
+
+    obj_model->ModelView = lookat(cam_pos, cam_direction, cam_up);
+    obj_model->Perspective = perspective(norm(subtract_vec3(cam_pos, cam_direction)));
+    obj_model->Viewport = viewport(SCR_WIDTH/16.f, SCR_HEIGHT/16.f, SCR_WIDTH*7.f/8.f, SCR_HEIGHT*7.f/8.f);
+
+
+    Shader *cube = malloc(sizeof(Shader));
+    cube->model = malloc(sizeof(Model));
+    cube->model->color = (vector4f) {75.0f, 255.0f, 75.0f, 255.0f};
+    cube->model->scale = 0.2f;
+    int vert_count = 36;
+    double vertices[108] ={
+        -0.5f, -0.5f, -0.5f,  
+         0.5f, -0.5f, -0.5f,  
+         0.5f,  0.5f, -0.5f,  
+         0.5f,  0.5f, -0.5f,  
+        -0.5f,  0.5f, -0.5f,  
+        -0.5f, -0.5f, -0.5f,  
+
+        -0.5f, -0.5f,  0.5f,  
+         0.5f, -0.5f,  0.5f,  
+         0.5f,  0.5f,  0.5f,  
+         0.5f,  0.5f,  0.5f,  
+        -0.5f,  0.5f,  0.5f,  
+        -0.5f, -0.5f,  0.5f,  
+
+        -0.5f,  0.5f,  0.5f,  
+        -0.5f,  0.5f, -0.5f,  
+        -0.5f, -0.5f, -0.5f,  
+        -0.5f, -0.5f, -0.5f,  
+        -0.5f, -0.5f,  0.5f,  
+        -0.5f,  0.5f,  0.5f,  
+
+         0.5f,  0.5f,  0.5f,  
+         0.5f,  0.5f, -0.5f,  
+         0.5f, -0.5f, -0.5f,  
+         0.5f, -0.5f, -0.5f,  
+         0.5f, -0.5f,  0.5f,  
+         0.5f,  0.5f,  0.5f,  
+
+        -0.5f, -0.5f, -0.5f,  
+         0.5f, -0.5f, -0.5f,  
+         0.5f, -0.5f,  0.5f,  
+         0.5f, -0.5f,  0.5f,  
+        -0.5f, -0.5f,  0.5f,  
+        -0.5f, -0.5f, -0.5f,  
+
+        -0.5f,  0.5f, -0.5f,  
+         0.5f,  0.5f, -0.5f,  
+         0.5f,  0.5f,  0.5f,  
+         0.5f,  0.5f,  0.5f,  
+        -0.5f,  0.5f,  0.5f,  
+        -0.5f,  0.5f, -0.5f
+    };
+    cube->model->vertices = malloc(vert_count * sizeof(vector3f));
+    int v_i = 0;
+    for(int i = 0; i < 36; i++ ) {
+        
+        cube->model->vertices[i].x = vertices[v_i];
+        v_i++;
+        cube->model->vertices[i].y = vertices[v_i];
+        v_i++;
+        cube->model->vertices[i].z = vertices[v_i];
+        v_i++;
+
+    }
+
+
+     cube->model->vertices_size = vert_count;
+    cube->model->norm_size = vert_count;
+
+    //vert indices
+    cube->model->triangles = malloc(36 * sizeof(int));
+    for(int i = 0; i < 36; i++) {
+        cube->model->triangles[i] = i;
+    }
+
+    
+    cube->model->triangles_size = 36;
+    cube->model->normals = find_normals(cube->model->vertices, cube->model->vertices_size, cube->model->triangles, cube->model->triangles_size);
+
+    cube->ModelView = lookat(cam_pos, cam_direction, cam_up);
+    cube->Perspective = perspective(norm(subtract_vec3(cam_pos, cam_direction)));
+
+    cube->Viewport = viewport(SCR_WIDTH/16.f, SCR_HEIGHT/16.f, SCR_WIDTH*7.f/8.f, SCR_HEIGHT*7.f/8.f);
+
+
+    int zbuf_size = SCR_WIDTH * SCR_HEIGHT;
+    double *zbuffer = malloc(sizeof(double) * zbuf_size);
+    for (int z = 0; z < zbuf_size; z++) {
+        zbuffer[z] = -DBL_MAX;
+    }
+
+    Uint64 current_time ;
+    Uint64 last_time;
+    double dt = 0;
+
+    cube->model->angle =0;
+    float move = 0.05f;
+
+
+    while (run) {
+
+
+
+        SDL_Event event;
+        last_time = current_time;
+        current_time = SDL_GetPerformanceCounter();
+        
+        dt = (double)((current_time - last_time)*25 / (double)SDL_GetPerformanceFrequency());
+
+        while(SDL_PollEvent(&event)) {
+            switch (event.type){
+
+            case SDL_EVENT_WINDOW_RESIZED:
+                if(draw_surface) {
+                    SDL_DestroySurface(draw_surface);
+                }
+                draw_surface = NULL;
+
+                SCR_WIDTH = event.window.data1;
+                SCR_HEIGHT = event.window.data2;
+                break;
+        
+            case SDL_EVENT_QUIT:
+                run = false;
+                break;
+            case SDL_EVENT_MOUSE_MOTION:
+                mouse_x = event.motion.x;
+                mouse_y = event.motion.y;
+                break;
+            case SDL_EVENT_KEY_DOWN:
+                switch(event.type) {
+                case SDL_EVENT_KEY_DOWN: 
+                    if(event.key.key == SDLK_ESCAPE)
+                    {                       
+                        run = false;
+                        break;
+                    }
+                }
+                break;
+            
+        }
+        }
+
+        if (!run)
+            break;
+
+
+        if (!draw_surface) {
+            draw_surface = SDL_CreateSurface( SCR_WIDTH, SCR_HEIGHT, SDL_PIXELFORMAT_RGBA32);
+            SDL_SetSurfaceBlendMode(draw_surface, SDL_BLENDMODE_NONE);
+        }
+
+
+      //Sets color buffer for screen
+        image_view color_buffer;
+        color_buffer.pixels = (color4ub *)draw_surface->pixels,
+        color_buffer.width = SCR_WIDTH;
+        color_buffer.height = SCR_HEIGHT;
+        vector4f backgroundColor = {0.7f, 1.0f, 1.0f, 1.0f};
+
+        //Set background color
+        clear(&color_buffer, &backgroundColor);
+
+		
+        
+        color_buffer.at = image_view_at;
+
+
+        cube->model->angle += dt;
+
+        //printf("%f \n", dt);
+        if(move > 1.0f) 
+            move = -1.0f;
+
+
+        // render_faces(obj_model, zbuffer, &color_buffer, 0);
+        // //Reset the zbuffer
+        // for (int z = 0; z < zbuf_size; z++) {
+        //     zbuffer[z] = -DBL_MAX;
+        // }
+
+        render_faces(cube, zbuffer, &color_buffer, true, 0);
+        //Reset the zbuffer
+        for (int z = 0; z < zbuf_size; z++) {
+            zbuffer[z] = -DBL_MAX;
+        }
+
+        //render_wireframe(shader->model, &color_buffer);
+
+     if (mu_begin_window(ctx, "My Window", mu_rect(10, 10, 140, 86))) {
+
+            mu_end_window(ctx);
+        }
+        mu_end(ctx);
+
+        SDL_FRect rect;
+        // UI drawing
+        mu_Command *cmd = NULL;
+
+        SDL_FRect full;
+        full.x = 0;
+        full.y = 0;
+        full.w = 128;
+        full.h = 128;
+        
+        SDL_FRect full2;
+        full2.x = 0;
+        full2.y = 0;
+        full2.w = 256;
+        full2.h = 256;
+        SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+        SDL_RenderClear(renderer);
+        
+
+         while(mu_next_command(ctx, &cmd)) {
+            if(cmd->type == MU_COMMAND_TEXT) {
+                SDL_FRect dest;
+                dest.x = cmd->text.pos.x;
+                dest.y = cmd->text.pos.y;
+
+                for(const char *p = cmd->text.str; *p; p++) {
+                    if((*p & 0xc0) == 0x80) { continue; }
+                    int chr = fmin((unsigned char) *p, 127);
+                    mu_Rect src = atlas[ATLAS_FONT + chr];
+                    dest.w = src.w;
+                    dest.h = src.h;
+
+                    SDL_FRect srcSDL;
+                    srcSDL.h = src.h;
+                    srcSDL.w = src.w;
+                    srcSDL.x = src.x;
+                    srcSDL.y = src.y;
+                    
+                    SDL_RenderTexture(renderer, tex, &srcSDL, &dest);
+                    dest.x += dest.w;
+                }
+            }
+            if(cmd->type == MU_COMMAND_RECT) {
+                SDL_FRect rect;
+                rect.h = cmd->rect.rect.h;
+                rect.w = cmd->rect.rect.w;
+                rect.x = cmd->rect.rect.x;
+                rect.y = cmd->rect.rect.y;
+
+                SDL_SetRenderDrawColor(renderer, cmd->rect.color.r, cmd->rect.color.g, cmd->rect.color.b, cmd->rect.color.a);
+                SDL_RenderFillRect(renderer, &rect);
+                
+            }
+            if(cmd->type == MU_COMMAND_ICON) {
+                SDL_FRect rect;
+                rect.h = cmd->icon.rect.h;
+                rect.w = cmd->icon.rect.w;
+                rect.x = cmd->icon.rect.x;
+                rect.y = cmd->icon.rect.y;
+
+                mu_Rect r = atlas[cmd->icon.id];
+                SDL_FRect srect;
+                srect.h = r.h;
+                srect.w = r.w;
+                srect.x = r.x;
+                srect.y = r.y;
+                
+                SDL_RenderTexture(renderer, tex, &srect, &rect);
+                
+            }
+            if(cmd->type == MU_COMMAND_CLIP) {
+                SDL_Rect clip = {
+                    cmd->clip.rect.x,
+                    cmd->clip.rect.y,
+                    cmd->clip.rect.w,
+                    cmd->clip.rect.h
+                };
+    
+                if (cmd->clip.rect.w > 0) {
+                    SDL_SetRenderClipRect(renderer, &clip);
+                } else {
+                    SDL_SetRenderClipRect(renderer, NULL);
+                }
+            }
+        }
+        SDL_RenderPresent(renderer);
+        
+        SDL_Rect draw_rect;
+        draw_rect.x = 0; 
+        draw_rect.y = 0; 
+        draw_rect.w = SCR_WIDTH; 
+        draw_rect.h = SCR_HEIGHT;
+        SDL_BlitSurface(draw_surface, &draw_rect,
+            SDL_GetWindowSurface(window), &draw_rect);
+
+        SDL_UpdateWindowSurface(window);
+
+        
+    }
+
+
+    
+    free(zbuffer);
+    free(cube->model->triangles);
+    free(cube->model->vertices);
+    free(cube->model->normals);
+
+    free(cube->model);
+    free(cube);
+    free(obj_model->model->triangles);
+    free(obj_model->model->textures);
+    free(obj_model->model->vertices);
+    free(obj_model->model->normals);
+    free(obj_model->model);
+    free(obj_model);
+
+
+    SDL_DestroySurface(draw_surface);
+    //SDL_DestroyEvent(event);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
+
+
+    return 0;
 }

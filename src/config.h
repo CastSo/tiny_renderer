@@ -6,6 +6,11 @@
 #include <float.h> 
 #include <assert.h>
 #include <time.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_timer.h>
 
