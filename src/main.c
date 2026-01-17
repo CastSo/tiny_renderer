@@ -46,52 +46,59 @@ int main(int argc, char **argv)
     Model *cube = malloc(sizeof(Model));
     cube->color = (vector4f){75.0f, 255.0f, 75.0f, 255.0f};
     cube->scale = 0.2f;
-    int vert_count = 36;
-    double vertices[108] = {
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, 0.5f, -0.5f,
-        0.5f, 0.5f, -0.5f,
-        -0.5f, 0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
+    int vert_count = 24;
 
-        -0.5f, -0.5f, 0.5f,
-        0.5f, -0.5f, 0.5f,
-        0.5f, 0.5f, 0.5f,
-        0.5f, 0.5f, 0.5f,
-        -0.5f, 0.5f, 0.5f,
-        -0.5f, -0.5f, 0.5f,
+    //Uses counter-clockwise winding like OpenGL
+    double vertices[72] = {
+        -0.5f, -0.5f, -0.5f,         // A 0
+        0.5f, -0.5f, -0.5f,         // B 1
+        0.5f,  0.5f, -0.5f,         // C 2
+        -0.5f,  0.5f, -0.5f,         // D 3
+        -0.5f, -0.5f,  0.5f,         // E 4
+        0.5f, -0.5f,  0.5f,          // F 5
+        0.5f,  0.5f,  0.5f,          // G 6
+        -0.5f,  0.5f,  0.5f,          // H 7
+        
+        -0.5f,  0.5f, -0.5f,      // D 8
+        -0.5f, -0.5f, -0.5f,         // A 9
+        -0.5f, -0.5f,  0.5f,         // E 10
+        -0.5f,  0.5f,  0.5f,         // H 11
+        0.5f, -0.5f, -0.5f,          // B 12
+        0.5f,  0.5f, -0.5f,          // C 13
+        0.5f,  0.5f,  0.5f,          // G 14
+        0.5f, -0.5f,  0.5f,          // F 15
+        
+        -0.5f, -0.5f, -0.5f,      // A 16
+        0.5f, -0.5f, -0.5f,          // B 17
+        0.5f, -0.5f,  0.5f,          // F 18
+        -0.5f, -0.5f,  0.5f,         // E 19
+        0.5f,  0.5f, -0.5f,          // C 20
+        -0.5f,  0.5f, -0.5f,         // D 21
+        -0.5f,  0.5f,  0.5f,         // H 22
+        0.5f,  0.5f,  0.5f,          // G 23
+    };
 
-        -0.5f, 0.5f, 0.5f,
-        -0.5f, 0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, 0.5f,
-        -0.5f, 0.5f, 0.5f,
-
-        0.5f, 0.5f, 0.5f,
-        0.5f, 0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, 0.5f,
-        0.5f, 0.5f, 0.5f,
-
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, 0.5f,
-        0.5f, -0.5f, 0.5f,
-        -0.5f, -0.5f, 0.5f,
-        -0.5f, -0.5f, -0.5f,
-
-        -0.5f, 0.5f, -0.5f,
-        0.5f, 0.5f, -0.5f,
-        0.5f, 0.5f, 0.5f,
-        0.5f, 0.5f, 0.5f,
-        -0.5f, 0.5f, 0.5f,
-        -0.5f, 0.5f, -0.5f};
+    cube->triangles_size = 36;
+    int cube_indices[36] = {
+        // front and back
+        0, 3, 2,
+        2, 1, 0,
+        4, 5, 6,
+        6, 7 ,4,
+        // left and right
+        11, 8, 9,
+        9, 10, 11,
+        12, 13, 14,
+        14, 15, 12,
+        // bottom and top
+        16, 17, 18,
+        18, 19, 16,
+        20, 21, 22,
+        22, 23, 20
+    };
     cube->vertices = malloc(vert_count * sizeof(vector3f));
     int v_i = 0;
-    for (int i = 0; i < 36; i++)
+    for (int i = 0; i < 24; i++)
     {
 
         cube->vertices[i].x = vertices[v_i];
@@ -103,17 +110,12 @@ int main(int argc, char **argv)
     }
 
     cube->vertices_size = vert_count;
-    cube->norm_size = vert_count;
 
     // vert indices
-    cube->triangles = malloc(36 * sizeof(int));
-    for (int i = 0; i < 36; i++)
-    {
-        cube->triangles[i] = i;
-    }
+    cube->triangles = cube_indices;
 
-    cube->triangles_size = 36;
     cube->normals = find_normals(cube->vertices, cube->vertices_size, cube->triangles, cube->triangles_size);
+    cube->norm_size = cube->triangles_size;
 
 
     int zbuf_size = SCR_WIDTH * SCR_HEIGHT;
@@ -123,11 +125,11 @@ int main(int argc, char **argv)
         zbuffer[z] = -DBL_MAX;
     }
 
-    Uint64 current_time;
+    Uint64 current_time = SDL_GetPerformanceCounter();
     Uint64 last_time;
     double dt = 0;
 
-    cube->angle = 90;
+    cube->angle = 60;
     float move = 0.05f;
 
     float cam_speed = 0.0;
@@ -139,7 +141,7 @@ int main(int argc, char **argv)
         current_time = SDL_GetPerformanceCounter();
 
         
-        dt = (double)((current_time - last_time) * 25 / (double)SDL_GetPerformanceFrequency());
+        dt = (double)((current_time - last_time) * 10000 / (double)SDL_GetPerformanceFrequency());
         cam_speed = 2.5f * dt;
 
         while (SDL_PollEvent(&event))
@@ -221,7 +223,7 @@ int main(int argc, char **argv)
 
         color_buffer.at = image_view_at;
 
-        cube->angle += dt;
+        cube->angle = dt;
 
 
         //Update model view for transforming based on cam changes
@@ -232,7 +234,7 @@ int main(int argc, char **argv)
         }
 
 
-        render_faces(shader, cube, zbuffer, &color_buffer, false, 0);
+        render_faces(shader, cube, zbuffer, &color_buffer, true, 0);
         // Reset the zbuffer
         for (int z = 0; z < zbuf_size; z++)
         {
@@ -259,7 +261,7 @@ int main(int argc, char **argv)
     free(shader->light);
     free(shader);
 
-    free(cube->triangles);
+
     free(cube->vertices);
     free(cube->normals);
     free(cube);

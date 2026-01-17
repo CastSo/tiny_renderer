@@ -18,9 +18,7 @@
     shader->normal = scale(shader->normal, scaling);
     shader->eye = scale(shader->eye, scaling);
     shader->clip = scale(shader->clip,scaling);
-    shader->normal = rotateY(shader->normal, model->angle);
-    shader->eye = rotateY(shader->eye, model->angle);
-    shader->clip = rotateY(shader->clip, model->angle);
+
     shader->normal = rotateX(shader->normal, model->angle);
     shader->eye = rotateX(shader->eye, model->angle);
     shader->clip = rotateX(shader->clip, model->angle);
@@ -108,8 +106,8 @@ vector4f scale(vector4f v, vector3f s) {
 }
 
 vector3f *find_normals(vector3f* v, int vertices_size, int* triangles, int triangles_size) {
-    vector3f *normals = malloc(vertices_size * sizeof(vector3f));
-    
+    vector3f *normals = malloc((triangles_size) * sizeof(vector3f));
+
     for(int i = 0; i < triangles_size; i += 3) {
         //Triangles stored together
         vector3f a = v[triangles[i]];
@@ -122,7 +120,9 @@ vector3f *find_normals(vector3f* v, int vertices_size, int* triangles, int trian
         
         vector3f aN = cross(ab, ac);
         vector3f bN = cross (ab, bc);
-        vector3f cN = cross(ac, bc);
+        vector3f cN = cross(ac, bc);  
+
+        //printf("%d: %d, %d, %d\n", i, triangles[i], triangles[i+1], triangles[i+2]);
 
         normals[triangles[i]] = aN;
         normals[triangles[i+1]] = bN;
