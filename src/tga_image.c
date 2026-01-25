@@ -184,8 +184,8 @@ struct color4ub *load_tga(char *file_name, TGAHeader *tga_header) {
             int b = (height - 1 - j) * width;
             for (int i = 0; i < width; i++) {
                 color4ub tmp = pixbuf[a];
-                pixbuf[b] = pixbuf[a];
-                pixbuf[a] = tmp;
+                pixbuf[a] = pixbuf[b];
+                pixbuf[b] = tmp;
                 a++;
                 b++;
             }
@@ -202,27 +202,3 @@ struct color4ub *load_tga(char *file_name, TGAHeader *tga_header) {
     return pixbuf;
 }
 
-void flip_horizontally(color4ub *pixbuf, int width, int height) {
-    for (int i = 0; i < width/2; i++) {
-        for (int j = 0; j < height; j++) {
-            int a = i+j*width;
-            int b = width-1-i+j*width;
-            color4ub tmp = pixbuf[a];
-            pixbuf[a] = pixbuf[b];
-            pixbuf[b] = tmp;
-        }
-    }
-}
-
-
-void flip_vertically(color4ub *pixbuf, int width, int height) {
-    for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height/2; j++) {
-            int a = i+j*width;
-            int b = i+(height-1-j)*width;
-            color4ub tmp = pixbuf[a];
-            pixbuf[a] = pixbuf[b];
-            pixbuf[b] = tmp;
-        }
-    }
-}

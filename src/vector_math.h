@@ -21,8 +21,10 @@ vector4f multiply_mat4f_vec4f(matrix4f m, vector4f v);
 
 matrix3f transpose_mat3f(matrix3f m);
 
+
 double determinant(matrix3f m);
-matrix3f inverse(matrix3f m);
+matrix3f inverse_mat3f(matrix3f m);
+matrix4f inverse_mat4f(matrix4f m);
 vector3f cross(vector3f a, vector3f b);
 
 double norm_vec3f(vector3f v);

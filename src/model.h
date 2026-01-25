@@ -12,6 +12,7 @@ typedef struct Model {
     struct vector3f* vertices;
     struct vector3f* normals;
     struct vector3f* textures;
+    uint8_t *texturebuf;
     int vertices_size;
     int triangles_size;
     int norm_size;

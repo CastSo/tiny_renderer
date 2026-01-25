@@ -83,31 +83,22 @@ struct Model* read_model_lines(char *file_name) {
                 char *vert = strtok_r(prev_line, "/", &saveptr2);
 
                 int v = atoi(vert);
-                if(v != 0) {
-                    //vertices on faces start at 1
-                    line_vert[n] = v-1;
-                    n += 1;
+
+                //Loads v, vn, and vt
+                while (vert != NULL){
+                    int v = atoi(vert);
+                    if(v != 0) {
+                        //obj starts at 1 so convert to index starting at 0
+                        model->triangles[face_i] = v-1;
+                       // printf("%d, ", model->triangles[face_i]);
+                        face_i++;
+                    }
+                    vert = strtok_r(NULL, "/", &saveptr2);
                 }
-                //Use later when want to get face data of vn and vt
-                // while (vert != NULL){
-                //     int v = atoi(vert);
-                //     if(v != 0) {
-                //         model->triangles[face_i] = v;
-                //         printf("%d, ", model->triangles[face_i]);
-                //         face_i++;
-                //     }
-                //     vert = strtok_r(NULL, "/", &saveptr2);
-                // }
+                //printf("\n");
                 
                 prev_line = strtok_r(NULL, " ", &saveptr1);
 
-            }
-
-            for (int i = 1; i < n - 1; i++) {
-                model->triangles[face_i++] = line_vert[0];
-                model->triangles[face_i++] = line_vert[i];
-                model->triangles[face_i++] = line_vert[i + 1];
-                //printf("%d, %d, %d \n", line_vert[0], line_vert[i], line_vert[i+1]);  
             }
 
 
@@ -172,18 +163,17 @@ struct Model* read_model_lines(char *file_name) {
 }
 
 vector4f normal(Model self, vector2f uv) {
-    //(row*height)+column
-    double x = uv.x * self.tga_header->width;
-    double y = (uv.y) * self.tga_header->height;
+    //normal to screen space
+    int x = (int)(uv.x * self.tga_header->width);
+    int y = (int)((1-uv.y) * self.tga_header->height);
 
-    x = clamp(x, 0, self.tga_header->width-1);
-    y = clamp(y, 0, self.tga_header->height-1);
-    //Finds coordinates from uv image
-    int i = (y + self.tga_header->width) + x ;
+    //Fragment samples from image
+    int i = (x + y * self.tga_header->width);
     vector4f color;
+    //printf("%f, %f, %d \n", uv.x, uv.y, self.tga_header->width);
 
-    //From 2D image
-    color = (vector4f){self.uv[i].r, self.uv[i].g, self.uv[i].b,  self.uv[i].a};
+    //From 2D image superimpose 3D model
+    color = (vector4f){self.uv[i].r, self.uv[i].g, self.uv[i].b,  0};
     color = subtract_vec4f(scale_vec4f(color, 2./255.), (vector4f){1, 1, 1, 0});
 
     //printf("%d: %d, %d, %d \n", i, color.x, color.y, color.z);

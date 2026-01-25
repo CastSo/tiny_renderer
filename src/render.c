@@ -29,21 +29,24 @@ vector3f convert_to_ndc(vector3f vec, int width, int height) {
 
 void render_faces(Shader *shader, Model *model, double *zbuffer, image_view* color_buffer, bool is_bf_cull, float move) {
 
-    for (int v = 0; v < (model->triangles_size); v += 3) {
+    for (int v = 0; v < (model->triangles_size); v += 9) {
       
         vector4f clip[3];
         vector3f varying_uv[3];
 
         for (int f = 0; f < 3; f++) {
-            vector3f vec = model->vertices[model->triangles[f+v]];
+            vector3f vec = model->vertices[model->triangles[v+(f*3)]];
             vector4f position = multiply_mat4f_vec4f(shader->ModelView, (vector4f){vec.x, vec.y, vec.z, 1.});
             clip[f] = multiply_mat4f_vec4f(shader->Perspective, position); // in clip coordinates
             
             //Uses vt from model
-            varying_uv[f] = model->textures[model->triangles[f+v]];
+            varying_uv[f] = model->textures[model->triangles[v+(f*3+1)]];
 
-            //printf("%f, %f, %f\n", varying_uv[f].x, varying_uv[f].y, varying_uv[f].z);
+            
         }
+
+        // if(v < 9)
+        //     printf("%d, %d, %d\n", model->triangles[v+(0*3)],model->triangles[v+(1*3)], model->triangles[v+(2*3)]);
 
         
       triangle(shader, model, zbuffer, clip, varying_uv, color_buffer, is_bf_cull);
@@ -246,15 +249,21 @@ void triangle(Shader *shader,  Model *model, double *zbuffer, vector4f clip[3], 
         for (int y = fmax(bbminy,0); y <= fmin(bbmaxy, color_buffer->height-1); y++) {
             int normal_y = color_buffer->height-y-1;
             //Barycentric coordinates
-            vector3f bc = multiply_mat3f_vec3f((inverse(ABC)), (vector3f){(double)x, (double) y, 1.});
+            vector3f bc = multiply_mat3f_vec3f((inverse_mat3f(ABC)), (vector3f){(double)x, (double) y, 1.});
             //Checks if pixel outside triangle
             if (bc.x < 0 || bc.y < 0 || bc.z < 0) 
+                continue;
+            
+
+            double z = dot_vec3f(bc, (vector3f){ndc[0].z, ndc[1].z, ndc[2].z});
+            //Discard pixel p because inferior to z;
+            if (z <= zbuffer[x+normal_y*color_buffer->width])
                 continue;
 
             vector3f uv = add_vec3f(add_vec3f(scale_vec3f(varying_uv[0], bc.x), scale_vec3f(varying_uv[1], bc.y)), scale_vec3f(varying_uv[2], bc.z));
 
-            vector4f n = multiply_mat4f_vec4f(shader->ModelView, normal(*model, (vector2f){uv.x, uv.y}));
-            //vector4f n = (vector4f){uv.x, uv.y, 0.0f, 0.0f};
+            vector4f n = multiply_mat4f_vec4f(shader->ModelView), normal(*model, (vector2f){uv.x, uv.y}));
+
             vector4f vec_n = normalize_vec4f(n);
             vector4f vec_l = normalize_vec4f( (vector4f){sun_direction.x, sun_direction.y, sun_direction.z, 0.0f}); // direction toward sun
             
@@ -267,13 +276,6 @@ void triangle(Shader *shader,  Model *model, double *zbuffer, vector4f clip[3], 
             double diff = fmax(0, dot_vec4f(vec_n, vec_l));
             double ambient = .3;
 
-            double z = dot_vec3f(bc, (vector3f){ndc[0].z, ndc[1].z, ndc[2].z});
-             //y growing downward
-            
-
-            //Discard pixel p because inferior to z;
-            if (z <= zbuffer[x+normal_y*color_buffer->width])
-                continue;
 
             zbuffer[x+normal_y*color_buffer->width] = z;
 

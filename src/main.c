@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     shader->light->direction = (vector3f){0, 1, 0};
     
 
-    Model *obj_model  = read_model_lines("./src/models/african_head.obj");
+    Model *obj_model  = read_model_lines("./src/models/diablo3_pose.obj");
     obj_model->color = (vector4f){255.0f, 255.0f, 255.0f, 255.0f};
     //obj_model->scale = 0.5f;
 
@@ -142,10 +142,10 @@ int main(int argc, char **argv)
 
     
     obj_model->tga_header = malloc(sizeof(TGAHeader));
-    obj_model->uv = load_tga("./src/models/african_head_nm.tga", obj_model->tga_header);
+    obj_model->uv = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->tga_header);
 
     image_view *img_buffer = malloc(sizeof(image_view));
-    img_buffer->pixels = load_tga("./src/models/african_head_nm.tga", obj_model->tga_header);
+    img_buffer->pixels = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->tga_header);
     img_buffer->width = SCR_WIDTH;
     img_buffer->height = SCR_HEIGHT;
   
@@ -240,13 +240,13 @@ int main(int argc, char **argv)
 
         cube->angle = dt;
 
-        render_tga(color_buffer, img_buffer);
+        //render_tga(color_buffer, img_buffer);
         //Update model view for transforming based on cam changes
-        // render_faces(shader, obj_model, zbuffer, color_buffer, true, 0);
-        // for (int z = 0; z < zbuf_size; z++)
-        // {
-        //     zbuffer[z] = -DBL_MAX;
-        // }
+        render_faces(shader, obj_model, zbuffer, color_buffer, true, 0);
+        for (int z = 0; z < zbuf_size; z++)
+        {
+            zbuffer[z] = -DBL_MAX;
+        }
 
 
         // render_faces(shader, cube, zbuffer, color_buffer, true, 0);

@@ -90,7 +90,7 @@ matrix3f transpose_mat3f(matrix3f m) {
                        m.n02, m.n12, m.n22};
 }
 
-matrix3f inverse(matrix3f m){
+matrix3f inverse_mat3f(matrix3f m){
     //transpose and inverse
     vector3f a = {m.n00, m.n01, m.n02};
     vector3f b = {m.n10, m.n11, m.n12};
@@ -108,6 +108,30 @@ matrix3f inverse(matrix3f m){
         r2.x * invDet, r2.y * invDet, r2.z * invDet,
     };
 }
+
+matrix4f inverse_mat4f(matrix4f m){
+    //transpose and inverse
+    matrix3f mat3 = {
+        m.n00, m.n10, m.n20,
+        m.n01, m.n11, m.n21,
+        m.n02, m.n12, m.n22
+    };
+
+    vector3f t = {m.n03, m.n13, m.n23};
+
+    matrix3f inv_m = inverse_mat3f(mat3);
+
+    vector3f inv_t = scale_vec3f(multiply_mat3f_vec3f(inv_m, t), -1.0f);
+
+    return (matrix4f) {
+        inv_m.n00, inv_m.n10, inv_m.n20, inv_t.x, 
+        inv_m.n01, inv_m.n11, inv_m.n21, inv_t.y, 
+        inv_m.n02, inv_m.n12, inv_m.n22, inv_t.z,
+        0,0,0,1
+     };
+
+}
+
 
 double determinant(matrix3f m) {
     return (m.n00 * (m.n11 * m.n22 - m.n12 * m.n21) +
