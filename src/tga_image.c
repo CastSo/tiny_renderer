@@ -39,17 +39,6 @@ struct color4ub *load_tga(char *file_name, TGAHeader *tga_header) {
     tga_header->bits_per_pixel = fgetc(fptr);
     tga_header->image_descriptor = fgetc(fptr);
 
-    //Error checkers
-    if (tga_header->data_type_code != 2 && tga_header->data_type_code != 10) {
-        perror("LoadTGA: Only type 2 and 10 targa RGB images supported\n");
-        return NULL;
-    }
-
-    if (tga_header->colormap_type !=0 || (tga_header->bits_per_pixel !=32 && tga_header->bits_per_pixel!=24))
-	{	
-        perror("Texture_LoadTGA: Only 32 or 24 bit images supported (no colormaps)\n");
-        return NULL;
-    }
 
     //Image data
     bool tga_is_RLE = false; //Checks is lossless (RLE) or lossy
@@ -72,6 +61,20 @@ struct color4ub *load_tga(char *file_name, TGAHeader *tga_header) {
         tga_header->data_type_code -= 8;
         tga_is_RLE = true;
     }
+    //Error checkers
+    if (tga_header->data_type_code < 1 || tga_header->data_type_code > 3) {
+        perror("LoadTGA: Invalid image type.\n");
+        return NULL;
+    }
+
+    if ((tga_header->bits_per_pixel !=32 && tga_header->bits_per_pixel!=24 && tga_header->bits_per_pixel!=16 && tga_header->bits_per_pixel!=8))
+	{	
+        perror("Texture_LoadTGA: Invalid images supported (no colormaps)\n");
+        return NULL;
+    }
+
+
+
 
     tga_header->image_descriptor = 1 - ((tga_header->image_descriptor >> 5) & 1);
     

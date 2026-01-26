@@ -141,13 +141,18 @@ int main(int argc, char **argv)
     color_buffer->height = SCR_HEIGHT;
 
     
-    obj_model->tga_header = malloc(sizeof(TGAHeader));
-    obj_model->uv = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->tga_header);
+    obj_model->header_uv = malloc(sizeof(TGAHeader));
+    obj_model->header_diffuse = malloc(sizeof(TGAHeader));
+    obj_model->header_specular = malloc(sizeof(TGAHeader));
+    obj_model->uv = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->header_uv);
+    obj_model->diffuse = load_tga("./src/models/diablo3_pose_diffuse.tga", obj_model->header_diffuse);
+    obj_model->specular = load_tga("./src/models/diablo3_pose_spec.tga", obj_model->header_specular);
+    
 
-    image_view *img_buffer = malloc(sizeof(image_view));
-    img_buffer->pixels = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->tga_header);
-    img_buffer->width = SCR_WIDTH;
-    img_buffer->height = SCR_HEIGHT;
+    // image_view *img_buffer = malloc(sizeof(image_view));
+    // img_buffer->pixels = load_tga("./src/models/diablo3_pose_nm.tga", obj_model->header_uv);
+    // img_buffer->width = SCR_WIDTH;
+    // img_buffer->height = SCR_HEIGHT;
   
     while (run)
     {
@@ -238,9 +243,8 @@ int main(int argc, char **argv)
 
         color_buffer->at = image_view_at;
 
-        cube->angle = dt;
+        // obj_model->angle += 10;
 
-        //render_tga(color_buffer, img_buffer);
         //Update model view for transforming based on cam changes
         render_faces(shader, obj_model, zbuffer, color_buffer, true, 0);
         for (int z = 0; z < zbuf_size; z++)
@@ -271,10 +275,8 @@ int main(int argc, char **argv)
 
     }
     free(color_buffer);
-    free(obj_model->tga_header);
 
-    free(img_buffer->pixels);
-    free(img_buffer);
+
 
     free(zbuffer);
     free(shader->camera);
@@ -288,6 +290,11 @@ int main(int argc, char **argv)
     
     free(obj_model->triangles);
     free(obj_model->uv);
+    free(obj_model->diffuse);
+    free(obj_model->specular);
+    free(obj_model->header_diffuse);
+    free(obj_model->header_uv);
+    free(obj_model->header_specular);
     free(obj_model->textures);
     free(obj_model->vertices);
     free(obj_model->normals);

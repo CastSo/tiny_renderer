@@ -25,6 +25,7 @@ vector3f add_vec3f(vector3f a, vector3f b) {
     return (vector3f){a.x + b.x, a.y + b.y, a.z + b.z}; 
 }
 
+
 vector3f subtract_vec3(vector3f a, vector3f b) {
     return (vector3f){a.x - b.x, a.y - b.y, a.z - b.z}; 
 }

@@ -6,9 +6,17 @@
 #include "util/util.h"
 
 typedef struct Model {
-    TGAHeader *tga_header;
+    TGAHeader *header_uv;
+    TGAHeader *header_diffuse;
+    TGAHeader *header_specular;
+
     int* triangles;
+    //Texture images
     struct color4ub* uv;
+    struct color4ub* diffuse;
+    struct color4ub* specular;
+
+    //Obj data
     struct vector3f* vertices;
     struct vector3f* normals;
     struct vector3f* textures;
@@ -25,4 +33,5 @@ typedef struct Model {
 
 
 struct Model* read_model_lines(char *file_name);
-vector4f normal(Model self, vector2f uv);
+vector4f normal(TGAHeader *tga_header, color4ub *image, vector2f uv);
+color4ub sample2D(TGAHeader *tga_header, color4ub *image, vector2f uv);

@@ -212,7 +212,10 @@ double signed_triangle_area(int ax, int ay, int bx, int by, int cx, int cy) {
 
 //Uses bounding box rasterization
 void triangle(Shader *shader,  Model *model, double *zbuffer, vector4f clip[3], vector3f varying_uv[3],  image_view *color_buffer, bool is_backface_cull) {
-    
+    for (int i = 0; i < 3; i++) {
+        clip[i] = rotateY(clip[i], model->angle);
+
+    }
     vector3f sun_direction = shader->light->direction;
     vector3f cam_pos = shader->camera->position;
 
@@ -244,9 +247,11 @@ void triangle(Shader *shader,  Model *model, double *zbuffer, vector4f clip[3], 
     int bbmaxx = fmax(fmax(screen[0].x, screen[1].x), screen[2].x);
     int bbmaxy = fmax(fmax(screen[0].y, screen[1].y), screen[2].y);
 
+
    #pragma omp parallel for
     for (int x = fmax(bbminx, 0); x <= fmin(bbmaxx, color_buffer->width-1); x++) {
         for (int y = fmax(bbminy,0); y <= fmin(bbmaxy, color_buffer->height-1); y++) {
+
             int normal_y = color_buffer->height-y-1;
             //Barycentric coordinates
             vector3f bc = multiply_mat3f_vec3f((inverse_mat3f(ABC)), (vector3f){(double)x, (double) y, 1.});
@@ -260,32 +265,38 @@ void triangle(Shader *shader,  Model *model, double *zbuffer, vector4f clip[3], 
             if (z <= zbuffer[x+normal_y*color_buffer->width])
                 continue;
 
+            zbuffer[x+normal_y*color_buffer->width] = z;
+
             vector3f uv = add_vec3f(add_vec3f(scale_vec3f(varying_uv[0], bc.x), scale_vec3f(varying_uv[1], bc.y)), scale_vec3f(varying_uv[2], bc.z));
 
-            vector4f n = multiply_mat4f_vec4f(shader->ModelView), normal(*model, (vector2f){uv.x, uv.y}));
 
-            vector4f vec_n = normalize_vec4f(n);
-            vector4f vec_l = normalize_vec4f( (vector4f){sun_direction.x, sun_direction.y, sun_direction.z, 0.0f}); // direction toward sun
+            vector4f nm = normal(model->header_uv, model->uv, (vector2f){uv.x, uv.y});
             
+            vector4f vec_n_nm = normalize_vec4f(multiply_mat4f_vec4f(inverse_mat4f(shader->ModelView), nm));
+
+            vector4f vec_l = normalize_vec4f( (vector4f){sun_direction.x, sun_direction.y, sun_direction.z, 0.0f}); // direction toward sun
             
             int e = 35;
             vector4f vec_v = normalize_vec4f((vector4f){cam_pos.x, cam_pos.y, cam_pos.z, 0.0f}); //fragment to sun
-            //vector4f vec_r = (subtract_vec4f(scale_vec4f(scale_vec4f(vec_n,2), dot_vec4f(vec_n, vec_l)), vec_l)); //reflection of sun
-            vector4f vec_r = normalize_vec4f(subtract_vec4f(scale_vec4f(scale_vec4f(vec_n, dot_vec4f(vec_n, vec_l)), 2), vec_l)); //reflection of sun
-            double specular = pow(fmax(0, dot_vec4f(vec_r, vec_v)), e); 
-            double diff = fmax(0, dot_vec4f(vec_n, vec_l));
+            vector4f vec_r = normalize_vec4f(subtract_vec4f(scale_vec4f(scale_vec4f(vec_n_nm, dot_vec4f(vec_n_nm, vec_l)), 2), vec_l)); //reflection of sun
+           // double specular = pow(fmax(0, dot_vec4f(vec_r, vec_v)), e); 
+            double diffuse = fmax(0, dot_vec4f(vec_n_nm, vec_l));
             double ambient = .3;
+            color4ub spec_color = sample2D(model->header_specular, model->specular, (vector2f){uv.x, uv.y});
+            color4ub diff_color = sample2D(model->header_diffuse, model->diffuse, (vector2f){uv.x, uv.y});
+            double specular = (.5+2.*spec_color.r/255.) * pow(fmax(0, dot_vec4f(vec_r, vec_v)), e);
 
 
-            zbuffer[x+normal_y*color_buffer->width] = z;
-
-
+            //vector3f color = add_vec3f((vector3f){spec.x, spec.y, spec.z}, (vector3f){diff.x, diff.y ,diff.z});
             
-            double phong = ambient + .4*diff + .9*specular;
-            //printf("%f\n", phong);
+
+            //(vector4f)color =  normal(model->header_diffuse, model->diffuse, (vector2f){uv.x, uv.y});
+            
+            double phong = ambient + diffuse + specular;
+            // //printf("%f\n", phong);
            
-            *color_buffer->at(color_buffer, x, normal_y) = (color4ub) {phong * model->color.x , phong * model->color.y, phong * model->color.z,  model->color.w};
-            
+            *color_buffer->at(color_buffer, x, normal_y) = (color4ub) {phong * diff_color.r, phong * diff_color.g, phong * diff_color.b,  model->color.w};
+            //*color_buffer->at(color_buffer, x, normal_y) = (color4ub) {color.x, color.y, color.z, 255.0f};
         }
     }
 

@@ -162,20 +162,33 @@ struct Model* read_model_lines(char *file_name) {
     return model;
 }
 
-vector4f normal(Model self, vector2f uv) {
+vector4f normal(TGAHeader *tga_header, color4ub *image, vector2f uv) {
     //normal to screen space
-    int x = (int)(uv.x * self.tga_header->width);
-    int y = (int)((1-uv.y) * self.tga_header->height);
+    int x = (int)(uv.x * tga_header->width);
+    int y = (int)((1-uv.y) * tga_header->height);
 
     //Fragment samples from image
-    int i = (x + y * self.tga_header->width);
+    int i = (x + y * tga_header->width);
     vector4f color;
     //printf("%f, %f, %d \n", uv.x, uv.y, self.tga_header->width);
 
     //From 2D image superimpose 3D model
-    color = (vector4f){self.uv[i].r, self.uv[i].g, self.uv[i].b,  0};
+    color = (vector4f){image[i].r, image[i].g, image[i].b,  0};
     color = subtract_vec4f(scale_vec4f(color, 2./255.), (vector4f){1, 1, 1, 0});
 
     //printf("%d: %d, %d, %d \n", i, color.x, color.y, color.z);
     return color;
+}
+
+//Returns just the pixel RGB
+color4ub sample2D(TGAHeader *tga_header, color4ub *image, vector2f uv) {
+    //normal to screen space
+    int x = (int)(uv.x * tga_header->width);
+    int y = (int)((1-uv.y) * tga_header->height);
+
+    //Fragment samples from image
+    int i = (x + y * tga_header->width);
+    vector4f color;
+
+    return (color4ub){image[i].r, image[i].g, image[i].b,  0};
 }
